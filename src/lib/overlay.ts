@@ -234,16 +234,39 @@ export function renderOverlay(
 	} else {
 		// Grid
 		const n = items.length;
-		const rows = Math.max(1, Math.ceil(n / colCount));
+		const columns = Math.max(1, colCount);
+		const rows = Math.max(1, Math.ceil(n / columns));
 		const gapGrid = Math.max(0, Math.round(lineGap * (opts.gridGapScale ?? 1)));
-		// Determine which items fall into each column to compute max width per column
-		const colWidths: number[] = new Array(colCount).fill(0);
-		for (let index = 0; index < n; index++) {
-			const col = index % colCount; // row-major placement
-			colWidths[col] = Math.max(colWidths[col], itemWidths[index] ?? 0);
+
+		// Build per-row assignments; for right alignment, place last row in rightmost columns
+		const assignments: Array<Array<number | null>> = [];
+		for (let r = 0; r < rows; r++) {
+			const rowBase = r * columns;
+			const remaining = Math.max(0, n - rowBase);
+			const itemsInRow = Math.min(columns, remaining);
+			const rowAssign: Array<number | null> = new Array(columns).fill(null);
+			const isLastRow = r === rows - 1;
+			const startCol =
+				isLastRow && opts.textAlign === 'right' && itemsInRow < columns ? columns - itemsInRow : 0;
+			for (let k = 0; k < itemsInRow; k++) {
+				rowAssign[startCol + k] = rowBase + k;
+			}
+			assignments.push(rowAssign);
 		}
+
+		// Compute column widths based on assignments
+		const colWidths: number[] = new Array(columns).fill(0);
+		for (let c = 0; c < columns; c++) {
+			for (let r = 0; r < rows; r++) {
+				const idx = assignments[r]![c];
+				if (idx !== null && idx !== undefined) {
+					colWidths[c] = Math.max(colWidths[c], itemWidths[idx] ?? 0);
+				}
+			}
+		}
+
 		const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
-		const totalColGaps = (colCount - 1) * gapGrid;
+		const totalColGaps = (columns - 1) * gapGrid;
 		boxWidth = padding * 2 + totalColsWidth + totalColGaps;
 		const totalRowsHeight = rows * perItemHeight;
 		const totalRowGaps = (rows - 1) * gapGrid;
@@ -302,16 +325,67 @@ export function renderOverlay(
 		const columns = Math.max(1, colCount);
 		const rows = Math.max(1, Math.ceil(n / columns));
 		const gapGrid = Math.max(0, Math.round(lineGap * (opts.gridGapScale ?? 1)));
-		// Compute per-column widths again to drive alignment
-		const colWidths: number[] = new Array(columns).fill(0);
-		for (let index = 0; index < n; index++) {
-			const col = index % columns;
-			colWidths[col] = Math.max(colWidths[col], itemWidths[index] ?? 0);
+
+		// Rebuild assignments (must mirror sizing logic). For right alignment, place last row right.
+		const assignments: Array<Array<number | null>> = [];
+		for (let r = 0; r < rows; r++) {
+			const rowBase = r * columns;
+			const remaining = Math.max(0, n - rowBase);
+			const itemsInRow = Math.min(columns, remaining);
+			const rowAssign: Array<number | null> = new Array(columns).fill(null);
+			const isLastRow = r === rows - 1;
+			const startCol =
+				isLastRow && opts.textAlign === 'right' && itemsInRow < columns ? columns - itemsInRow : 0;
+			for (let k = 0; k < itemsInRow; k++) {
+				rowAssign[startCol + k] = rowBase + k;
+			}
+			assignments.push(rowAssign);
 		}
-		// Precompute column offsets from left edge (inside padding)
+
+		// Compute per-column widths and offsets
+		const colWidths: number[] = new Array(columns).fill(0);
+		for (let c = 0; c < columns; c++) {
+			for (let r = 0; r < rows; r++) {
+				const idx = assignments[r]![c];
+				if (idx !== null && idx !== undefined) {
+					colWidths[c] = Math.max(colWidths[c], itemWidths[idx] ?? 0);
+				}
+			}
+		}
 		const colOffsets: number[] = new Array(columns).fill(0);
 		for (let c = 1; c < columns; c++) {
 			colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGrid;
+		}
+
+		// Compute per-row start offset to align row content within total grid width
+		const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
+		const totalColGapsAll = Math.max(0, (columns - 1) * gapGrid);
+		const totalGridWidth = totalColsWidth + totalColGapsAll;
+		const rowStartOffset: number[] = new Array(rows).fill(0);
+		for (let r = 0; r < rows; r++) {
+			// Determine which columns are occupied in this row (from left)
+			let itemsInRow = 0;
+			for (let c = 0; c < columns; c++) if (assignments[r]![c] != null) itemsInRow++;
+			const rowContentWidth =
+				colWidths.reduce(
+					(acc, w, c) => (assignments[r]![c] != null ? acc + Math.ceil(w) : acc),
+					0
+				) +
+				Math.max(0, itemsInRow - 1) * gapGrid;
+			const leftover = Math.max(0, totalGridWidth - rowContentWidth);
+			switch (opts.textAlign) {
+				case 'right':
+					// Keep grid alignment; do not shift the last row
+					rowStartOffset[r] = 0;
+					break;
+				case 'center':
+					// Center last row within the grid width
+					rowStartOffset[r] = Math.round(leftover / 2);
+					break;
+				case 'left':
+				default:
+					rowStartOffset[r] = 0;
+			}
 		}
 
 		// Set text alignment once; per-cell textX will incorporate alignment
@@ -331,23 +405,23 @@ export function renderOverlay(
 		for (let r = 0; r < rows; r++) {
 			const rowTop = y + padding + r * (perItemHeight + gapGrid);
 			for (let c = 0; c < columns; c++) {
-				const index = r * columns + c;
-				if (index >= n) break;
-				const it = items[index];
+				const idx = assignments[r]![c];
+				if (idx === null || idx === undefined) continue;
+				const it = items[idx];
 				const thisColWidth = Math.ceil(colWidths[c]);
 
 				// Compute textX based on alignment within this cell/column
 				let textX: number;
 				switch (opts.textAlign) {
 					case 'center':
-						textX = x + padding + colOffsets[c] + Math.round(thisColWidth / 2);
+						textX = x + padding + rowStartOffset[r] + colOffsets[c] + Math.round(thisColWidth / 2);
 						break;
 					case 'right':
-						textX = x + padding + colOffsets[c] + thisColWidth;
+						textX = x + padding + rowStartOffset[r] + colOffsets[c] + thisColWidth;
 						break;
 					case 'left':
 					default:
-						textX = x + padding + colOffsets[c];
+						textX = x + padding + rowStartOffset[r] + colOffsets[c];
 						break;
 				}
 

@@ -67,7 +67,7 @@
 			/>
 		</label>
 		<label class="block text-sm">
-			<span class="form-label">Text alignment</span>
+			<span class="form-label">Alignment</span>
 			<select
 				bind:value={textAlign}
 				class="form-control"

@@ -27,10 +27,10 @@
 
 	<h3 class="mb-2 text-base font-semibold tracking-tight">How it works</h3>
 	<ol class="mb-3 list-decimal space-y-1 pl-5">
-		<li>Upload your <code>.tcx</code> file.</li>
+		<li>Upload your image and <code>.tcx</code> file.</li>
 		<li>Select the fields you want to include.</li>
 		<li>Pick a layout: list, auto grid, or fixed columns; tune spacing/columns.</li>
-		<li>Customize appearance: font, scale, backdrop darkness, and text alignment.</li>
+		<li>Customize appearance: font, scale, backdrop darkness, and alignment.</li>
 		<li>
 			Export as <strong>PNG</strong>, <strong>JPEG</strong>, or <strong>WebP</strong> (with quality control
 			for JPEG/WebP).
