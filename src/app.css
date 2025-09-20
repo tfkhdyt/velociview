@@ -1,0 +1,210 @@
+@import 'tailwindcss';
+
+@theme {
+	--font-sans:
+		'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+		'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+	--color-background: var(--color-zinc-50);
+	--color-foreground: var(--color-zinc-900);
+	--color-muted: var(--color-zinc-500);
+	--color-border: var(--color-zinc-200);
+	--color-card: var(--color-white);
+	--color-card-backdrop: rgba(255, 255, 255, 0.4);
+	--color-gradient-from: var(--color-zinc-50);
+	--color-gradient-to: var(--color-white);
+	--color-button-primary: var(--color-zinc-900);
+	--color-button-primary-hover: var(--color-zinc-800);
+	--color-button-primary-text: var(--color-white);
+	--color-button-secondary: var(--color-zinc-200);
+	--color-button-secondary-hover: var(--color-zinc-300);
+	--color-button-secondary-text: var(--color-zinc-900);
+	--color-accent: var(--color-zinc-900);
+	--color-pattern: rgba(0, 0, 0, 0.15);
+	--radius: 0.75rem;
+}
+
+@layer base {
+	html,
+	:host {
+		color-scheme: light dark;
+	}
+
+	/* Dark theme variables */
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--color-background: var(--color-zinc-950);
+			--color-foreground: var(--color-zinc-50);
+			--color-muted: var(--color-zinc-400);
+			--color-border: var(--color-zinc-800);
+			--color-card: var(--color-zinc-900);
+			--color-card-backdrop: rgba(39, 39, 42, 0.4);
+			--color-gradient-from: var(--color-zinc-950);
+			--color-gradient-to: var(--color-zinc-900);
+			--color-button-primary: var(--color-zinc-50);
+			--color-button-primary-hover: var(--color-zinc-200);
+			--color-button-primary-text: var(--color-zinc-900);
+			--color-button-secondary: var(--color-zinc-800);
+			--color-button-secondary-hover: var(--color-zinc-700);
+			--color-button-secondary-text: var(--color-zinc-50);
+			--color-accent: var(--color-zinc-50);
+		}
+	}
+
+	/* Force dark theme when data-theme="dark" */
+	[data-theme='dark'] {
+		--color-background: var(--color-zinc-950);
+		--color-foreground: var(--color-zinc-50);
+		--color-muted: var(--color-zinc-400);
+		--color-border: var(--color-zinc-800);
+		--color-card: var(--color-zinc-900);
+		--color-card-backdrop: rgba(39, 39, 42, 0.4);
+		--color-gradient-from: var(--color-zinc-950);
+		--color-gradient-to: var(--color-zinc-900);
+		--color-button-primary: var(--color-zinc-50);
+		--color-button-primary-hover: var(--color-zinc-200);
+		--color-button-primary-text: var(--color-zinc-900);
+		--color-button-secondary: var(--color-zinc-800);
+		--color-button-secondary-hover: var(--color-zinc-700);
+		--color-button-secondary-text: var(--color-zinc-50);
+		--color-accent: var(--color-zinc-50);
+		--color-pattern: rgba(255, 255, 255, 0.15);
+	}
+
+	/* Force light theme when data-theme="light" */
+	[data-theme='light'] {
+		--color-background: var(--color-zinc-50);
+		--color-foreground: var(--color-zinc-900);
+		--color-muted: var(--color-zinc-500);
+		--color-border: var(--color-zinc-200);
+		--color-card: var(--color-white);
+		--color-card-backdrop: rgba(255, 255, 255, 0.4);
+		--color-gradient-from: var(--color-zinc-50);
+		--color-gradient-to: var(--color-white);
+		--color-button-primary: var(--color-zinc-900);
+		--color-button-primary-hover: var(--color-zinc-800);
+		--color-button-primary-text: var(--color-white);
+		--color-button-secondary: var(--color-zinc-200);
+		--color-button-secondary-hover: var(--color-zinc-300);
+		--color-button-secondary-text: var(--color-zinc-900);
+		--color-accent: var(--color-zinc-900);
+		--color-pattern: rgba(0, 0, 0, 0.15);
+	}
+
+	* {
+		@apply border-border;
+	}
+	html,
+	body {
+		@apply bg-background font-sans text-foreground;
+	}
+
+	/* Background pattern */
+	body {
+		background-image:
+			radial-gradient(var(--color-pattern) 1px, transparent 1px),
+			linear-gradient(to bottom, var(--color-gradient-from), var(--color-gradient-to));
+		background-size:
+			24px 24px,
+			100% 100%;
+	}
+
+	/* Dark theme pattern */
+	@media (prefers-color-scheme: dark) {
+		body {
+			background-image:
+				radial-gradient(var(--color-pattern) 1px, transparent 1px),
+				linear-gradient(to bottom, var(--color-gradient-from), var(--color-gradient-to));
+		}
+	}
+
+	[data-theme='dark'] body {
+		background-image:
+			radial-gradient(var(--color-pattern) 1px, transparent 1px),
+			linear-gradient(to bottom, var(--color-gradient-from), var(--color-gradient-to));
+	}
+
+	[data-theme='light'] body {
+		background-image:
+			radial-gradient(var(--color-pattern) 1px, transparent 1px),
+			linear-gradient(to bottom, var(--color-gradient-from), var(--color-gradient-to));
+	}
+	input[type='file']::file-selector-button {
+		background-color: var(--color-button-primary);
+		color: var(--color-button-primary-text);
+		@apply me-3 rounded-md px-3 py-1.5 text-sm font-medium;
+	}
+	input[type='file']::file-selector-button:hover {
+		background-color: var(--color-button-primary-hover);
+	}
+}
+
+@layer components {
+	.form-label {
+		@apply mb-1 block text-sm font-medium text-foreground;
+	}
+	.btn {
+		@apply inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium shadow-sm transition-colors duration-200 focus:ring-2 focus:ring-zinc-400/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+	}
+	.btn-primary {
+		background-color: var(--color-button-primary);
+		color: var(--color-button-primary-text);
+	}
+	.btn-primary:hover:not(:disabled) {
+		background-color: var(--color-button-primary-hover);
+	}
+	.btn-secondary {
+		background-color: var(--color-button-secondary);
+		color: var(--color-button-secondary-text);
+	}
+	.btn-secondary:hover:not(:disabled) {
+		background-color: var(--color-button-secondary-hover);
+	}
+	.btn-ghost {
+		@apply text-muted underline hover:text-foreground;
+	}
+	.form-control {
+		background-color: var(--color-card);
+		border-color: var(--color-border);
+		color: var(--color-foreground);
+		@apply block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-zinc-400/40 focus:outline-none;
+	}
+	/* Extra right padding for selects so text doesn't crowd the chevron */
+	select.form-control {
+		/* Hide native arrow for consistent spacing */
+		appearance: none;
+		-webkit-appearance: none;
+		-moz-appearance: none;
+		/* Space for custom chevron */
+		@apply pr-10;
+		/* Custom chevron that follows currentColor */
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-size: 1rem 1rem;
+		background-position: right 0.625rem center; /* 10px from edge */
+	}
+
+	/* Ensure a light chevron in dark theme */
+	@media (prefers-color-scheme: dark) {
+		select.form-control {
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23e5e7eb'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+		}
+	}
+	[data-theme='dark'] select.form-control {
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23e5e7eb'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+	}
+	.form-range {
+		accent-color: var(--color-accent);
+		@apply w-full;
+	}
+	.form-checkbox {
+		accent-color: var(--color-accent);
+		border-color: var(--color-border);
+		@apply h-4 w-4 rounded focus:ring-2 focus:ring-zinc-400/40 focus:outline-none;
+	}
+}
+
+@utility container {
+	max-width: 80rem;
+	padding-inline: 1rem;
+	margin-inline: auto;
+}
