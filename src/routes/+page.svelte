@@ -52,8 +52,7 @@
 	let posY = $state(0.95); // normalized 0..1 (matches "bottom left" preset)
 	let fontFamily = $state('Inter, system-ui, Arial, sans-serif');
 
-	// Increment to force re-render after a font finishes loading
-	let fontVersion = $state(0);
+	// Manual rendering control - no more reactive dependencies
 	let textAlign = $state<'left' | 'center' | 'right'>('left');
 	let gridMode = $state<'list' | 'auto' | 'fixed'>('list');
 	let gridColumns = $state(2);
@@ -77,6 +76,8 @@
 			document.fonts.load(`700 16px ${primaryFamily}`)
 		]).then(() => {
 			fontsReady = true;
+			// Initial render once fonts are ready
+			requestRender();
 		});
 
 		// Clipboard API capability check (browser-only)
@@ -100,8 +101,8 @@
 			if (f.family === primaryFamily) continue;
 			// fire-and-forget warmup
 			ensureFontLoaded(f.family).then(() => {
-				// optional: bump version to trigger re-render when a new family completes
-				fontVersion++;
+				// trigger re-render when a new family completes
+				requestRender();
 			});
 		}
 	});
@@ -119,19 +120,36 @@
 	let uploadDragCounter = $state(0);
 	let previewDragCounter = $state(0);
 
-	// Combined chooser ref (removed unused input reference)
+	// File input references for reset functionality
+	let imageInputEl: HTMLInputElement | null = $state(null);
+	let tcxInputEl: HTMLInputElement | null = $state(null);
 
 	// Track last measured overlay box size from render to improve drag mapping
 	let overlayBoxWidth = $state(0);
 	let overlayBoxHeight = $state(0);
 
 	function resetAll(): void {
-		// no file state retained
+		// Clear file state
+		if (imageUrl) URL.revokeObjectURL(imageUrl);
 		imageBitmap = null;
 		imageUrl = null;
+		imageBaseName = '';
 		originalWidth = 0;
 		originalHeight = 0;
 		values = null;
+
+		// Clear the preview canvas before clearing contexts
+		if (previewCanvasEl && previewCtx) {
+			previewCtx.clearRect(0, 0, previewCanvasEl.width, previewCanvasEl.height);
+		}
+
+		// Clear canvas contexts and force re-creation
+		ctx = null;
+		previewCtx = null;
+
+		// Clear file input values to ensure onchange fires for new uploads
+		if (imageInputEl) imageInputEl.value = '';
+		if (tcxInputEl) tcxInputEl.value = '';
 	}
 
 	async function loadImageFile(file: File): Promise<void> {
@@ -147,7 +165,8 @@
 		imageBitmap = bmp;
 		originalWidth = bmp.width;
 		originalHeight = bmp.height;
-		ensureContexts();
+		// Force immediate render
+		requestRender();
 	}
 
 	async function handleImageChange(files: FileList | null): Promise<void> {
@@ -160,6 +179,8 @@
 		try {
 			const text = await file.text();
 			values = await parseTcxToOverlayValues(text);
+			// Re-render with the new values
+			requestRender();
 		} finally {
 			tcxLoading = false;
 		}
@@ -233,6 +254,56 @@
 		}
 	}
 
+	function renderPreview(): void {
+		// Clamp gridColumns when in fixed mode to the current number of selected fields
+		if (gridMode === 'fixed') {
+			const maxCols = Math.max(1, selectedFields.length);
+			if (gridColumns > maxCols) gridColumns = maxCols;
+			if (gridColumns < 1) gridColumns = 1;
+		}
+
+		ensureContexts();
+
+		// Check all required conditions
+		if (!fontsReady || !imageBitmap || !previewCtx || !previewCanvasEl) return;
+
+		const maxPreviewWidth = 1000;
+		let previewWidth = imageBitmap.width;
+		let previewHeight = imageBitmap.height;
+		if (previewWidth > maxPreviewWidth) {
+			const ratio = maxPreviewWidth / previewWidth;
+			previewWidth = Math.round(previewWidth * ratio);
+			previewHeight = Math.round(previewHeight * ratio);
+		}
+		previewCanvasEl.width = previewWidth;
+		previewCanvasEl.height = previewHeight;
+		previewCtx.clearRect(0, 0, previewWidth, previewHeight);
+		previewCtx.drawImage(imageBitmap, 0, 0, previewWidth, previewHeight);
+		if (backdropOpacity > 0) {
+			previewCtx.save();
+			previewCtx.fillStyle = `rgba(0, 0, 0, ${backdropOpacity})`;
+			previewCtx.fillRect(0, 0, previewWidth, previewHeight);
+			previewCtx.restore();
+		}
+		if (values) {
+			const res = renderOverlay(
+				previewCtx,
+				previewWidth,
+				previewHeight,
+				values,
+				getOverlayOptions()
+			);
+			overlayBoxWidth = res.width;
+			overlayBoxHeight = res.height;
+		}
+	}
+
+	// Safe render function that handles all the checks
+	function requestRender(): void {
+		// Use setTimeout to ensure state has settled
+		setTimeout(() => renderPreview(), 10);
+	}
+
 	function getOverlayOptions(): OverlayOptions {
 		return {
 			selectedFields,
@@ -288,50 +359,7 @@
 		ctx2d.restore();
 	}
 
-	$effect(() => {
-		// re-run when a font finishes loading in the background
-		void fontVersion;
-		// Clamp gridColumns when in fixed mode to the current number of selected fields
-		if (gridMode === 'fixed') {
-			const maxCols = Math.max(1, selectedFields.length);
-			if (gridColumns > maxCols) gridColumns = maxCols;
-			if (gridColumns < 1) gridColumns = 1;
-		}
-		// ensure contexts on mount
-		ensureContexts();
-
-		// Wait until fonts are ready so canvas uses Inter instead of fallback
-		if (!fontsReady || !imageBitmap || !previewCtx || !previewCanvasEl) return;
-		const maxPreviewWidth = 1000;
-		let previewWidth = imageBitmap.width;
-		let previewHeight = imageBitmap.height;
-		if (previewWidth > maxPreviewWidth) {
-			const ratio = maxPreviewWidth / previewWidth;
-			previewWidth = Math.round(previewWidth * ratio);
-			previewHeight = Math.round(previewHeight * ratio);
-		}
-		previewCanvasEl.width = previewWidth;
-		previewCanvasEl.height = previewHeight;
-		previewCtx.clearRect(0, 0, previewWidth, previewHeight);
-		previewCtx.drawImage(imageBitmap, 0, 0, previewWidth, previewHeight);
-		if (backdropOpacity > 0) {
-			previewCtx.save();
-			previewCtx.fillStyle = `rgba(0, 0, 0, ${backdropOpacity})`;
-			previewCtx.fillRect(0, 0, previewWidth, previewHeight);
-			previewCtx.restore();
-		}
-		if (values) {
-			const res = renderOverlay(
-				previewCtx,
-				previewWidth,
-				previewHeight,
-				values,
-				getOverlayOptions()
-			);
-			overlayBoxWidth = res.width;
-			overlayBoxHeight = res.height;
-		}
-	});
+	// No $effect - we'll handle rendering manually
 
 	async function exportImage(): Promise<void> {
 		// Ensure web fonts (e.g., Inter) are loaded before rasterizing to PNG
@@ -494,6 +522,7 @@
 		posX = topLeftX / availW;
 		posY = topLeftY / availH;
 		positionPreset = 'custom';
+		requestRender();
 	}
 	function handlePointerUp(e: PointerEvent): void {
 		if (previewCanvasEl) {
@@ -516,6 +545,7 @@
 		posX = x;
 		posY = y;
 		positionPreset = preset;
+		requestRender();
 	}
 </script>
 
@@ -535,11 +565,23 @@
 		>
 			<h2 class="mb-4 text-base font-semibold tracking-tight">Upload</h2>
 			<!-- Whole card acts as dropzone -->
-			<UploadSection {tcxLoading} onImageChange={handleImageChange} onTcxChange={handleTcxChange} />
+			<UploadSection
+				{tcxLoading}
+				onImageChange={handleImageChange}
+				onTcxChange={handleTcxChange}
+				bind:imageInputEl
+				bind:tcxInputEl
+			/>
 
 			{#if values && imageBitmap}
 				<div class="mt-6 space-y-5">
-					<FieldsSelector {selectedFields} onChange={(next) => (selectedFields = next)} />
+					<FieldsSelector
+						{selectedFields}
+						onChange={(next) => {
+							selectedFields = next;
+							requestRender();
+						}}
+					/>
 
 					<!-- Reordered controls: Position, Layout, Appearance -->
 					<div class="space-y-5">
@@ -561,6 +603,7 @@
 								gridMode = m;
 								gridColumns = c;
 								gridGapScale = g;
+								requestRender();
 							}}
 						/>
 
@@ -575,12 +618,22 @@
 								const first = needsQuote ? `"${entry.family}"` : entry.family;
 								fontFamily = `${first}, ${entry.fallback}`;
 								ensureFontLoaded(entry.family).then(() => {
-									fontVersion++;
+									requestRender();
 								});
+								requestRender();
 							}}
-							onScaleChange={(v) => (scale = v)}
-							onBackdropOpacityChange={(v) => (backdropOpacity = v)}
-							onTextAlignChange={(v) => (textAlign = v)}
+							onScaleChange={(v) => {
+								scale = v;
+								requestRender();
+							}}
+							onBackdropOpacityChange={(v) => {
+								backdropOpacity = v;
+								requestRender();
+							}}
+							onTextAlignChange={(v) => {
+								textAlign = v;
+								requestRender();
+							}}
 						/>
 
 						<!-- Export -->
@@ -628,6 +681,7 @@
 						onpointermove={handlePointerMove}
 						onpointerup={handlePointerUp}
 						onpointercancel={handlePointerCancel}
+						oncontextmenu={(e) => e.preventDefault()}
 					></canvas>
 				</div>
 			{:else}

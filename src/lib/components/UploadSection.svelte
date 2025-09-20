@@ -2,11 +2,15 @@
 	let {
 		tcxLoading,
 		onImageChange,
-		onTcxChange
+		onTcxChange,
+		imageInputEl = $bindable(),
+		tcxInputEl = $bindable()
 	}: {
 		tcxLoading: boolean;
 		onImageChange: (files: FileList | null) => void;
 		onTcxChange: (files: FileList | null) => void;
+		imageInputEl?: HTMLInputElement | null;
+		tcxInputEl?: HTMLInputElement | null;
 	} = $props();
 </script>
 
@@ -19,6 +23,7 @@
 			accept="image/*"
 			onchange={(e) => onImageChange((e.target as HTMLInputElement).files)}
 			class="form-control"
+			bind:this={imageInputEl}
 		/>
 	</div>
 	<div class="space-y-2">
@@ -31,6 +36,7 @@
 				onchange={(e) => onTcxChange((e.target as HTMLInputElement).files)}
 				disabled={tcxLoading}
 				class="form-control pr-10 disabled:cursor-not-allowed disabled:opacity-50"
+				bind:this={tcxInputEl}
 			/>
 			{#if tcxLoading}
 				<div class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
