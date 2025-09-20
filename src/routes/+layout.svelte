@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import favicon from '$lib/assets/favicon.svg';
 	import { initializeTheme } from '$lib/theme';
 	import { onMount } from 'svelte';
@@ -23,11 +24,26 @@
 	<meta name="description" content="VelociView — TCX image overlay generator for activity stats." />
 </svelte:head>
 
-<div class="min-h-dvh text-foreground transition-colors duration-300">
+<div class="flex min-h-dvh flex-col text-foreground transition-colors duration-300">
 	<header class="container py-6">
-		<h1 class="text-xl font-semibold tracking-tight">VelociView</h1>
+		<div class="flex items-center justify-between">
+			<h1 class="text-xl font-semibold tracking-tight">VelociView</h1>
+			<nav aria-label="Header" class="flex gap-x-6 text-sm">
+				<a href={resolve('/')} class="hover:underline">Home</a>
+				<a href={resolve('/about')} class="hover:underline">About</a>
+			</nav>
+		</div>
 	</header>
-	<main class="container pb-10">
+	<main class="container flex-1 pb-10">
 		{@render children?.()}
 	</main>
+	<footer class="container border-t py-6">
+		<nav aria-label="Footer" class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+			<a href={resolve('/terms')} class="hover:underline">Terms of Service</a>
+			<a href={resolve('/privacy')} class="hover:underline">Privacy Policy</a>
+			<a href="https://github.com/tfkhdyt/velociview" target="_blank" class="hover:underline"
+				>Source Code</a
+			>
+		</nav>
+	</footer>
 </div>
