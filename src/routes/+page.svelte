@@ -1,12 +1,28 @@
 <script lang="ts">
+	import ActionButtons from '$lib/components/ActionButtons.svelte';
+	import AppearanceControls from '$lib/components/AppearanceControls.svelte';
+	import ExportControls from '$lib/components/ExportControls.svelte';
+	import FieldsSelector from '$lib/components/FieldsSelector.svelte';
+	import LayoutControls from '$lib/components/LayoutControls.svelte';
+	import PositionControls from '$lib/components/PositionControls.svelte';
+	import UploadSection from '$lib/components/UploadSection.svelte';
 	import {
-		getOverlayFieldLabel,
 		OVERLAY_FIELD_ORDER,
 		renderOverlay,
 		type OverlayField,
 		type OverlayOptions,
 		type StatValues
 	} from '$lib/overlay';
+	import {
+		buildDownloadFilename,
+		ensureFontLoaded,
+		getMimeAndExt,
+		GOOGLE_FONTS,
+		isImageFile,
+		isTcxFile,
+		presetToPosition,
+		type PositionPreset
+	} from '$lib/page-utils';
 	import { parseTcxToOverlayValues } from '$lib/tcx';
 	import { onMount } from 'svelte';
 
@@ -35,62 +51,6 @@
 	let posX = $state(0.05); // normalized 0..1
 	let posY = $state(0.95); // normalized 0..1 (matches "bottom left" preset)
 	let fontFamily = $state('Inter, system-ui, Arial, sans-serif');
-	// Popular Google Fonts list with sensible system fallbacks
-	const googleFonts: Array<{ label: string; family: string; css: string; fallback: string }> = [
-		{ label: 'Inter', family: 'Inter', css: 'Inter', fallback: 'system-ui, Arial, sans-serif' },
-		{ label: 'Roboto', family: 'Roboto', css: 'Roboto', fallback: 'system-ui, Arial, sans-serif' },
-		{
-			label: 'Open Sans',
-			family: 'Open Sans',
-			css: 'Open+Sans',
-			fallback: 'system-ui, Arial, sans-serif'
-		},
-		{ label: 'Lato', family: 'Lato', css: 'Lato', fallback: 'system-ui, Arial, sans-serif' },
-		{
-			label: 'Montserrat',
-			family: 'Montserrat',
-			css: 'Montserrat',
-			fallback: 'system-ui, Arial, sans-serif'
-		},
-		{
-			label: 'Poppins',
-			family: 'Poppins',
-			css: 'Poppins',
-			fallback: 'system-ui, Arial, sans-serif'
-		},
-		{
-			label: 'Source Sans 3',
-			family: 'Source Sans 3',
-			css: 'Source+Sans+3',
-			fallback: 'system-ui, Arial, sans-serif'
-		},
-		{ label: 'Nunito', family: 'Nunito', css: 'Nunito', fallback: 'system-ui, Arial, sans-serif' },
-		{
-			label: 'Merriweather',
-			family: 'Merriweather',
-			css: 'Merriweather',
-			fallback: 'Georgia, serif'
-		},
-		{
-			label: 'Playfair Display',
-			family: 'Playfair Display',
-			css: 'Playfair+Display',
-			fallback: 'Georgia, serif'
-		}
-	];
-
-	async function ensureFontLoaded(targetFamily: string): Promise<void> {
-		const clean = targetFamily.replace(/['"]/g, '').trim();
-		try {
-			await Promise.all([
-				document.fonts.load(`400 16px ${clean}`),
-				document.fonts.load(`600 16px ${clean}`),
-				document.fonts.load(`700 16px ${clean}`)
-			]);
-		} catch {
-			// ignore
-		}
-	}
 
 	// Increment to force re-render after a font finishes loading
 	let fontVersion = $state(0);
@@ -136,7 +96,7 @@
 		}
 
 		// Warm all Google fonts in the background so switching is instant
-		for (const f of googleFonts) {
+		for (const f of GOOGLE_FONTS) {
 			if (f.family === primaryFamily) continue;
 			// fire-and-forget warmup
 			ensureFontLoaded(f.family).then(() => {
@@ -145,18 +105,6 @@
 			});
 		}
 	});
-
-	// Position presets for quick placement
-	type PositionPreset =
-		| 'top'
-		| 'left'
-		| 'center'
-		| 'right'
-		| 'bottom'
-		| 'top left'
-		| 'top right'
-		| 'bottom left'
-		| 'bottom right';
 
 	let positionPreset = $state<PositionPreset | 'custom'>('bottom left');
 
@@ -220,19 +168,6 @@
 	async function handleTcxChange(files: FileList | null): Promise<void> {
 		if (!files || files.length === 0) return;
 		await loadTcxFile(files[0]);
-	}
-
-	function isTcxFile(file: File): boolean {
-		const name = file.name.toLowerCase();
-		if (name.endsWith('.tcx')) return true;
-		const type = file.type;
-		return (
-			type === 'application/vnd.garmin.tcx+xml' || type === 'application/xml' || type === 'text/xml'
-		);
-	}
-
-	function isImageFile(file: File): boolean {
-		return file.type.startsWith('image/');
 	}
 
 	async function processDroppedFiles(files: FileList | File[]): Promise<void> {
@@ -360,18 +295,6 @@
 		}
 	});
 
-	function getMimeAndExt(fmt: 'png' | 'jpeg' | 'webp'): { mime: string; ext: string } {
-		switch (fmt) {
-			case 'jpeg':
-				return { mime: 'image/jpeg', ext: 'jpg' };
-			case 'webp':
-				return { mime: 'image/webp', ext: 'webp' };
-			case 'png':
-			default:
-				return { mime: 'image/png', ext: 'png' };
-		}
-	}
-
 	async function exportImage(): Promise<void> {
 		// Ensure web fonts (e.g., Inter) are loaded before rasterizing to PNG
 		try {
@@ -408,13 +331,7 @@
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		// Build a descriptive filename using image name, distance and time if available
-		const base = imageBaseName || 'overlay';
-		const distMatch = values.distance.match(/([0-9]+(?:\.[0-9]+)?)/);
-		const distPart = distMatch ? `${distMatch[1]}km` : null;
-		const timePart = values.movingTime.replace(/[^0-9]+/g, '-').replace(/^-+|-+$/g, '');
-		const parts = [base, distPart, timePart].filter((p): p is string => Boolean(p && p.length > 0));
-		a.download = `${parts.join('_')}.${ext}`;
+		a.download = buildDownloadFilename(imageBaseName, values, ext);
 		document.body.appendChild(a);
 		a.click();
 		a.remove();
@@ -553,45 +470,9 @@
 	const presetMargin = 0.05; // normalized margin from edges
 
 	function applyPositionPreset(preset: PositionPreset): void {
-		// Update posX/posY based on preset name
-		switch (preset) {
-			case 'center':
-				posX = 0.5;
-				posY = 0.5;
-				break;
-			case 'top':
-				posX = 0.5;
-				posY = presetMargin;
-				break;
-			case 'bottom':
-				posX = 0.5;
-				posY = 1 - presetMargin;
-				break;
-			case 'left':
-				posX = presetMargin;
-				posY = 0.5;
-				break;
-			case 'right':
-				posX = 1 - presetMargin;
-				posY = 0.5;
-				break;
-			case 'top left':
-				posX = presetMargin;
-				posY = presetMargin;
-				break;
-			case 'top right':
-				posX = 1 - presetMargin;
-				posY = presetMargin;
-				break;
-			case 'bottom left':
-				posX = presetMargin;
-				posY = 1 - presetMargin;
-				break;
-			case 'bottom right':
-				posX = 1 - presetMargin;
-				posY = 1 - presetMargin;
-				break;
-		}
+		const { x, y } = presetToPosition(preset, presetMargin);
+		posX = x;
+		posY = y;
 		positionPreset = preset;
 	}
 </script>
@@ -612,302 +493,74 @@
 		>
 			<h2 class="mb-4 text-base font-semibold tracking-tight">Upload</h2>
 			<!-- Whole card acts as dropzone -->
-			<div class="grid gap-4 md:grid-cols-2">
-				<div class="space-y-2">
-					<label class="form-label" for="image-input">Image</label>
-					<input
-						id="image-input"
-						type="file"
-						accept="image/*"
-						onchange={(e) => handleImageChange((e.target as HTMLInputElement).files)}
-						class="form-control"
-					/>
-				</div>
-				<div class="space-y-2">
-					<label class="form-label" for="tcx-input">TCX</label>
-					<div class="relative">
-						<input
-							id="tcx-input"
-							type="file"
-							accept=".tcx,application/vnd.garmin.tcx+xml,application/xml,text/xml"
-							onchange={(e) => handleTcxChange((e.target as HTMLInputElement).files)}
-							disabled={tcxLoading}
-							class="form-control pr-10 disabled:cursor-not-allowed disabled:opacity-50"
-						/>
-						{#if tcxLoading}
-							<div class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-								<svg
-									class="h-5 w-5 animate-spin text-accent"
-									viewBox="0 0 24 24"
-									fill="none"
-									aria-hidden="true"
-								>
-									<circle
-										class="opacity-25"
-										cx="12"
-										cy="12"
-										r="10"
-										stroke="currentColor"
-										stroke-width="4"
-									></circle>
-									<path
-										class="opacity-75"
-										fill="currentColor"
-										d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-									></path>
-								</svg>
-							</div>
-						{/if}
-					</div>
-				</div>
-			</div>
+			<UploadSection {tcxLoading} onImageChange={handleImageChange} onTcxChange={handleTcxChange} />
 
 			{#if values && imageBitmap}
 				<div class="mt-6 space-y-5">
-					<fieldset
-						class="rounded-xl border border-border bg-white/20 p-4 backdrop-blur [[data-theme=dark]_&]:bg-zinc-900/20"
-					>
-						<legend class="form-label px-1">Fields</legend>
-						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-							{#each OVERLAY_FIELD_ORDER as f (f)}
-								<label class="inline-flex items-center gap-2 text-sm">
-									<input
-										type="checkbox"
-										checked={selectedFields.includes(f as OverlayField)}
-										onchange={(e) => {
-											const checked = (e.target as HTMLInputElement).checked;
-											const targetField = f as OverlayField;
-											if (checked) {
-												if (!selectedFields.includes(targetField)) {
-													selectedFields = [...selectedFields, targetField];
-												}
-											} else {
-												selectedFields = selectedFields.filter((x) => x !== targetField);
-											}
-											// Keep selection order consistent
-											selectedFields = [...selectedFields].sort(
-												(a, b) => OVERLAY_FIELD_ORDER.indexOf(a) - OVERLAY_FIELD_ORDER.indexOf(b)
-											);
-										}}
-										class="form-checkbox"
-									/>
-									<span>{getOverlayFieldLabel(f as OverlayField)}</span>
-								</label>
-							{/each}
-						</div>
-					</fieldset>
+					<FieldsSelector {selectedFields} onChange={(next) => (selectedFields = next)} />
 
 					<!-- Reordered controls: Position, Layout, Appearance -->
 					<div class="space-y-5">
 						<!-- Position -->
-						<div class="space-y-2">
-							<h3 class="text-sm font-semibold tracking-tight">Position</h3>
-							<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-								<label class="block text-sm">
-									<span class="form-label">Preset</span>
-									<select
-										bind:value={positionPreset}
-										onchange={(e) => {
-											const value = (e.target as HTMLSelectElement).value as
-												| PositionPreset
-												| 'custom';
-											if (value !== 'custom') applyPositionPreset(value);
-										}}
-										class="form-control"
-									>
-										<option value="custom">Custom</option>
-										<option value="top">Top</option>
-										<option value="left">Left</option>
-										<option value="center">Center</option>
-										<option value="right">Right</option>
-										<option value="bottom">Bottom</option>
-										<option value="top left">Top left</option>
-										<option value="top right">Top right</option>
-										<option value="bottom left">Bottom left</option>
-										<option value="bottom right">Bottom right</option>
-									</select>
-								</label>
-							</div>
-						</div>
+						<PositionControls
+							{positionPreset}
+							onPresetChange={(value) => {
+								if (value !== 'custom') applyPositionPreset(value as PositionPreset);
+							}}
+						/>
 
 						<!-- Layout -->
-						<div class="space-y-2">
-							<h3 class="text-sm font-semibold tracking-tight">Layout</h3>
-							<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-								<label class="block text-sm">
-									<span class="form-label">Mode</span>
-									<select bind:value={gridMode} class="form-control">
-										<option value="list">List</option>
-										<option value="auto">Auto grid</option>
-										<option value="fixed">Fixed columns</option>
-									</select>
-								</label>
-								{#if gridMode === 'fixed'}
-									<label class="block text-sm">
-										<span class="form-label">Columns</span>
-										<input
-											type="number"
-											min="1"
-											max={Math.max(1, selectedFields.length)}
-											step="1"
-											bind:value={gridColumns}
-											class="form-control"
-										/>
-									</label>
-								{/if}
-								{#if gridMode !== 'list'}
-									<label class="block text-sm">
-										<span class="form-label">Grid spacing</span>
-										<input
-											type="range"
-											min="0"
-											max="2"
-											step="0.05"
-											bind:value={gridGapScale}
-											class="form-range"
-										/>
-									</label>
-								{/if}
-							</div>
-						</div>
+						<LayoutControls
+							{gridMode}
+							{gridColumns}
+							{gridGapScale}
+							maxColumns={selectedFields.length}
+							onChange={({ gridMode: m, gridColumns: c, gridGapScale: g }) => {
+								gridMode = m;
+								gridColumns = c;
+								gridGapScale = g;
+							}}
+						/>
 
 						<!-- Appearance -->
-						<div class="space-y-2">
-							<h3 class="text-sm font-semibold tracking-tight">Appearance</h3>
-							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
-								<label class="block text-sm">
-									<span class="form-label">Font</span>
-									<select
-										class="form-control"
-										onchange={async (e) => {
-											const selected = (e.target as HTMLSelectElement).value;
-											const entry = googleFonts.find((f) => f.family === selected);
-											if (!entry) return;
-											// Quote the first family if it contains spaces
-											const needsQuote = /\s/.test(entry.family);
-											const first = needsQuote ? `"${entry.family}"` : entry.family;
-											fontFamily = `${first}, ${entry.fallback}`;
-											// ensure it's loaded, but don't block UI; re-render once loaded
-											ensureFontLoaded(entry.family).then(() => {
-												fontVersion++;
-											});
-										}}
-									>
-										{#each googleFonts as f (f.family)}
-											<option value={f.family} selected={fontFamily.startsWith(f.family)}
-												>{f.label}</option
-											>
-										{/each}
-									</select>
-								</label>
-								<label class="block text-sm">
-									<span class="form-label">Scale</span>
-									<input
-										type="range"
-										min="0.5"
-										max="3"
-										step="0.05"
-										bind:value={scale}
-										class="form-range"
-									/>
-								</label>
-								<label class="block text-sm">
-									<span class="form-label">Darken image</span>
-									<input
-										type="range"
-										min="0"
-										max="0.9"
-										step="0.01"
-										bind:value={backdropOpacity}
-										class="form-range"
-									/>
-								</label>
-								<label class="block text-sm">
-									<span class="form-label">Text alignment</span>
-									<select bind:value={textAlign} class="form-control">
-										<option value="left">Left</option>
-										<option value="center">Center</option>
-										<option value="right">Right</option>
-									</select>
-								</label>
-							</div>
-						</div>
+						<AppearanceControls
+							selectedFontFamily={fontFamily}
+							{scale}
+							{backdropOpacity}
+							{textAlign}
+							onFontSelect={(entry) => {
+								const needsQuote = /\s/.test(entry.family);
+								const first = needsQuote ? `"${entry.family}"` : entry.family;
+								fontFamily = `${first}, ${entry.fallback}`;
+								ensureFontLoaded(entry.family).then(() => {
+									fontVersion++;
+								});
+							}}
+							onScaleChange={(v) => (scale = v)}
+							onBackdropOpacityChange={(v) => (backdropOpacity = v)}
+							onTextAlignChange={(v) => (textAlign = v)}
+						/>
 
 						<!-- Export -->
-						<div class="space-y-2">
-							<h3 class="text-sm font-semibold tracking-tight">Export</h3>
-							<div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-3">
-								<label class="block text-sm">
-									<span class="form-label">Format</span>
-									<select bind:value={exportFormat} class="form-control">
-										<option value="png">PNG (lossless)</option>
-										<option value="jpeg">JPEG (lossy)</option>
-										<option value="webp">WebP (lossy/lossless)</option>
-									</select>
-								</label>
-								{#if exportFormat !== 'png'}
-									<label class="block text-sm">
-										<span class="form-label">Quality</span>
-										<input
-											type="range"
-											min="0.4"
-											max="1"
-											step="0.01"
-											bind:value={exportQuality}
-											class="form-range"
-										/>
-									</label>
-								{/if}
-							</div>
-						</div>
+						<ExportControls
+							{exportFormat}
+							{exportQuality}
+							onChange={({ exportFormat: f, exportQuality: q }) => {
+								exportFormat = f;
+								exportQuality = q;
+							}}
+						/>
 					</div>
 
-					<div class="flex flex-wrap items-center gap-3">
-						<button
-							class="btn btn-primary"
-							onclick={exportImage}
-							disabled={!imageBitmap || !values}
-						>
-							Export
-						</button>
-						<button
-							class="btn btn-secondary"
-							onclick={copyImageToClipboard}
-							disabled={!imageBitmap || !values || !canCopyToClipboard || copying}
-							title={canCopyToClipboard ? 'Copy the image to clipboard' : 'Clipboard not supported'}
-						>
-							{#if copying}
-								<span class="inline-flex items-center gap-2">
-									<svg
-										class="h-4 w-4 animate-spin"
-										viewBox="0 0 24 24"
-										fill="none"
-										aria-hidden="true"
-									>
-										<circle
-											class="opacity-25"
-											cx="12"
-											cy="12"
-											r="10"
-											stroke="currentColor"
-											stroke-width="4"
-										></circle>
-										<path
-											class="opacity-75"
-											fill="currentColor"
-											d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-										></path>
-									</svg>
-									Copying…
-								</span>
-							{:else if justCopied}
-								Copied!
-							{:else}
-								Copy
-							{/if}
-						</button>
-						<button class="btn btn-ghost" onclick={resetAll}>Reset</button>
-					</div>
+					<ActionButtons
+						canExport={Boolean(imageBitmap && values)}
+						canCopy={Boolean(imageBitmap && values && canCopyToClipboard)}
+						{copying}
+						{justCopied}
+						onExportClick={exportImage}
+						onCopyClick={copyImageToClipboard}
+						onResetClick={resetAll}
+					/>
 				</div>
 			{/if}
 		</div>

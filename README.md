@@ -1,38 +1,36 @@
-# sv
+# VelociView
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+VelociView is a lightweight tool to generate clean, customizable image overlays of your activity stats from TCX files. Drop in a photo and a TCX file, tweak the appearance, and export a polished image for sharing.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- Clean, modern overlay of key stats (distance, time, pace, elevation, etc.)
+- Flexible layout: list, auto grid, or fixed columns
+- Precise placement with drag-and-drop positioning presets
+- Font selection with preloaded Google Fonts
+- Adjustable scale and backdrop darkening
+- Export as PNG, JPEG, or WebP, or copy to clipboard
 
-```sh
-# create a new project in the current directory
-npx sv create
+## Usage
 
-# create a new project in my-app
-npx sv create my-app
-```
+1. Upload or drop an image.
+2. Upload or drop a `.tcx` file.
+3. Choose which fields to display, adjust position, layout, and appearance.
+4. Export or copy the result.
 
-## Developing
+## Development
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+This project uses Svelte 5 and Vite.
 
-```sh
-npm run dev
+- Install dependencies:
+  - `pnpm install`
+- Start the dev server:
+  - `pnpm dev`
+- Build for production:
+  - `pnpm build`
+- Preview the production build:
+  - `pnpm preview`
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+## License
 
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+MIT
