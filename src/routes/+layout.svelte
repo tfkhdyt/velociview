@@ -38,7 +38,10 @@
 		{@render children?.()}
 	</main>
 	<footer class="container border-t py-6">
-		<nav aria-label="Footer" class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+		<nav
+			aria-label="Footer"
+			class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center text-sm sm:justify-start sm:text-left"
+		>
 			<a href={resolve('/terms')} class="hover:underline">Terms of Service</a>
 			<a href={resolve('/privacy')} class="hover:underline">Privacy Policy</a>
 			<a href="https://github.com/tfkhdyt/velociview" target="_blank" class="hover:underline"

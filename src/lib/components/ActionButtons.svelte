@@ -16,6 +16,12 @@
 		onCopyClick: () => void;
 		onResetClick: () => void;
 	} = $props();
+
+	function handleResetClick(): void {
+		if (confirm('Reset all settings and clear data?')) {
+			onResetClick();
+		}
+	}
 </script>
 
 <div class="flex flex-wrap items-center gap-3">
@@ -44,5 +50,5 @@
 		{/if}
 	</button>
 
-	<button class="btn btn-ghost" onclick={onResetClick}>Reset</button>
+	<button class="btn btn-ghost" onclick={handleResetClick}>Reset</button>
 </div>
