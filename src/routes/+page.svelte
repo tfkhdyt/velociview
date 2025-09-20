@@ -250,6 +250,44 @@
 		};
 	}
 
+	function drawWatermark(
+		ctx2d: CanvasRenderingContext2D,
+		imageWidth: number,
+		imageHeight: number,
+		uiFontFamily: string
+	): void {
+		const text = 'Made by VelociView';
+		const margin = Math.max(8, Math.round(imageWidth * 0.02));
+		const fontSize = Math.max(12, Math.min(28, Math.round(imageWidth * 0.016)));
+		const primaryFamily = uiFontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
+		const x = imageWidth - margin;
+		const y = imageHeight - margin;
+		ctx2d.save();
+		ctx2d.textAlign = 'right';
+		ctx2d.textBaseline = 'bottom';
+		ctx2d.font = `italic 600 ${fontSize}px ${primaryFamily}`;
+		// Measure for gradient width
+		const metrics = ctx2d.measureText(text);
+		const textWidth = Math.ceil(metrics.width);
+		// Subtle shadow for legibility (reduced size)
+		ctx2d.shadowColor = 'rgba(0, 0, 0, 0.4)';
+		ctx2d.shadowBlur = Math.max(0, Math.round(fontSize * 0.25));
+		ctx2d.shadowOffsetX = Math.round(fontSize * 0.08);
+		ctx2d.shadowOffsetY = Math.round(fontSize * 0.08);
+		// Thin stroke to outline (smaller and lighter)
+		ctx2d.lineJoin = 'round';
+		ctx2d.lineWidth = 1;
+		ctx2d.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+		ctx2d.strokeText(text, x, y);
+		// Elegant gradient fill (less transparent)
+		const grad = ctx2d.createLinearGradient(x - textWidth, y, x, y);
+		grad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+		grad.addColorStop(1, 'rgba(255, 255, 255, 0.85)');
+		ctx2d.fillStyle = grad;
+		ctx2d.fillText(text, x, y);
+		ctx2d.restore();
+	}
+
 	$effect(() => {
 		// re-run when a font finishes loading in the background
 		void fontVersion;
@@ -323,6 +361,8 @@
 			scale: scale * exportScaleFactor
 		};
 		renderOverlay(ctx, originalWidth, originalHeight, values, exportOptions);
+		// Watermark (export only)
+		drawWatermark(ctx, originalWidth, originalHeight, fontFamily);
 		const { mime, ext } = getMimeAndExt(exportFormat);
 		const qualityParam =
 			exportFormat === 'png' ? undefined : Math.max(0, Math.min(1, exportQuality));
@@ -368,6 +408,8 @@
 				scale: scale * exportScaleFactor
 			};
 			renderOverlay(ctx, originalWidth, originalHeight, values, exportOptions);
+			// Watermark (copy to clipboard)
+			drawWatermark(ctx, originalWidth, originalHeight, fontFamily);
 			if (!canCopyToClipboard || !clipboardItemCtor) {
 				await exportImage();
 				return;
