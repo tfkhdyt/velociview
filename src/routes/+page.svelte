@@ -65,8 +65,10 @@
 	// Ensure web fonts (e.g., Inter) are loaded before any canvas rendering
 	let fontsReady = $state(false);
 	let canCopyToClipboard = $state(false);
+	let canShare = $state(false);
 	let justCopied = $state(false);
 	let copying = $state(false);
+	let sharing = $state(false);
 	onMount(() => {
 		const primaryFamily = fontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
 		// Proactively load primary weights used by the UI
@@ -94,6 +96,25 @@
 			canCopyToClipboard = Boolean(hasClipboard && hasClipboardItem);
 		} catch {
 			canCopyToClipboard = false;
+		}
+
+		// Web Share API capability check (prefer files share)
+		try {
+			const supportsShare =
+				typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+			const supportsFiles =
+				typeof navigator !== 'undefined' && typeof navigator.canShare === 'function';
+			// We will share an image file; ensure canShare with files if available
+			if (supportsFiles) {
+				// Create a tiny placeholder blob to check capability safely
+				const testBlob = new Blob(['x'], { type: 'image/png' });
+				const file = new File([testBlob], 'test.png', { type: 'image/png' });
+				canShare = navigator.canShare?.({ files: [file] }) === true;
+			} else {
+				canShare = supportsShare;
+			}
+		} catch {
+			canShare = false;
 		}
 
 		// Warm all Google fonts in the background so switching is instant
@@ -430,6 +451,84 @@
 		URL.revokeObjectURL(url);
 	}
 
+	async function shareImage(): Promise<void> {
+		if (sharing) return;
+		sharing = true;
+		try {
+			// Ensure web fonts are ready
+			try {
+				await (document.fonts as FontFaceSet).ready;
+			} catch {
+				// ignore if Font Loading API unsupported
+			}
+			const c = canvasEl;
+			if (!imageBitmap || !ctx || !values || !c) return;
+			c.width = originalWidth;
+			c.height = originalHeight;
+			ctx.clearRect(0, 0, originalWidth, originalHeight);
+			ctx.drawImage(imageBitmap, 0, 0, originalWidth, originalHeight);
+			if (backdropOpacity > 0) {
+				ctx.save();
+				ctx.fillStyle = `rgba(0, 0, 0, ${backdropOpacity})`;
+				ctx.fillRect(0, 0, originalWidth, originalHeight);
+				ctx.restore();
+			}
+			const previewWidthRef = previewCanvasEl?.width ?? originalWidth;
+			const exportScaleFactor = originalWidth / Math.max(1, previewWidthRef);
+			const exportOptions: OverlayOptions = {
+				...getOverlayOptions(),
+				scale: scale * exportScaleFactor
+			};
+			renderOverlay(ctx, originalWidth, originalHeight, values, exportOptions);
+			// Watermark on share as well
+			drawWatermark(ctx, originalWidth, originalHeight, fontFamily);
+			const { mime, ext } = getMimeAndExt(exportFormat);
+			const qualityParam =
+				exportFormat === 'png' ? undefined : Math.max(0, Math.min(1, exportQuality));
+			const blob: Blob | null = await new Promise((resolve) =>
+				c.toBlob(resolve, mime, qualityParam)
+			);
+			if (!blob) return;
+			const filename = buildDownloadFilename(imageBaseName, values, ext);
+			if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+				// Prefer files if supported
+				let shared = false;
+				if (typeof navigator.canShare === 'function') {
+					try {
+						const file = new File([blob], filename, { type: mime });
+						if (navigator.canShare({ files: [file] })) {
+							await navigator.share({ files: [file], title: 'VelociView overlay' });
+							shared = true;
+						}
+					} catch {
+						// ignore share errors and continue to url fallback
+					}
+				}
+				if (!shared) {
+					// Fallback to sharing a blob URL if files not supported
+					const url = URL.createObjectURL(blob);
+					try {
+						await navigator.share({ title: 'VelociView overlay', url });
+					} finally {
+						URL.revokeObjectURL(url);
+					}
+				}
+			} else {
+				// Fallback to normal download if share is unavailable
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				a.remove();
+				URL.revokeObjectURL(url);
+			}
+		} finally {
+			sharing = false;
+		}
+	}
+
 	async function copyImageToClipboard(): Promise<void> {
 		if (copying) return;
 		copying = true;
@@ -707,10 +806,13 @@
 					<ActionButtons
 						canExport={Boolean(imageBitmap && values)}
 						canCopy={Boolean(imageBitmap && values && canCopyToClipboard)}
+						canShare={Boolean(imageBitmap && values && canShare)}
 						{copying}
+						{sharing}
 						{justCopied}
 						onExportClick={exportImage}
 						onCopyClick={copyImageToClipboard}
+						onShareClick={shareImage}
 						onResetClick={resetAll}
 					/>
 				</div>

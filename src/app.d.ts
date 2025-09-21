@@ -8,6 +8,18 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	interface ShareData {
+		title?: string;
+		text?: string;
+		url?: string;
+		files?: ReadonlyArray<File>;
+	}
+
+	interface Navigator {
+		canShare?: (data?: ShareData) => boolean;
+		share?: (data: ShareData) => Promise<void>;
+	}
 }
 
 export {};
