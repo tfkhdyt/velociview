@@ -51,7 +51,7 @@
 			<input
 				id="tcx-input"
 				type="file"
-				accept=".tcx,application/vnd.garmin.tcx+xml,application/xml,text/xml"
+				accept=".tcx"
 				onchange={(e) => onTcxChange((e.target as HTMLInputElement).files)}
 				disabled={tcxLoading}
 				class="form-control pr-10 disabled:cursor-not-allowed disabled:opacity-50"

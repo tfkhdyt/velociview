@@ -135,3 +135,41 @@ export function buildDownloadFilename(baseName: string, values: StatValues, ext:
 	const parts = [base, distPart, timePart].filter((p): p is string => Boolean(p && p.length > 0));
 	return `${parts.join('_')}.${ext}`;
 }
+
+export function drawWatermark(
+	ctx: CanvasRenderingContext2D,
+	imageWidth: number,
+	imageHeight: number,
+	uiFontFamily: string
+): void {
+	const text = 'Made by VelociView';
+	const margin = Math.max(8, Math.round(imageWidth * 0.02));
+	const fontSize = Math.max(12, Math.min(28, Math.round(imageWidth * 0.016)));
+	const primaryFamily = uiFontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
+	const x = imageWidth - margin;
+	const y = imageHeight - margin;
+	ctx.save();
+	ctx.textAlign = 'right';
+	ctx.textBaseline = 'bottom';
+	ctx.font = `italic 600 ${fontSize}px ${primaryFamily}`;
+	// Measure for gradient width
+	const metrics = ctx.measureText(text);
+	const textWidth = Math.ceil(metrics.width);
+	// Subtle shadow for legibility (reduced size)
+	ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+	ctx.shadowBlur = Math.max(0, Math.round(fontSize * 0.25));
+	ctx.shadowOffsetX = Math.round(fontSize * 0.08);
+	ctx.shadowOffsetY = Math.round(fontSize * 0.08);
+	// Thin stroke to outline (smaller and lighter)
+	ctx.lineJoin = 'round';
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+	ctx.strokeText(text, x, y);
+	// Elegant gradient fill (less transparent)
+	const grad = ctx.createLinearGradient(x - textWidth, y, x, y);
+	grad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+	grad.addColorStop(1, 'rgba(255, 255, 255, 0.85)');
+	ctx.fillStyle = grad;
+	ctx.fillText(text, x, y);
+	ctx.restore();
+}
