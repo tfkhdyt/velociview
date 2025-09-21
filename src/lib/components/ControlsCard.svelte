@@ -10,6 +10,7 @@
 	import type { PositionPreset } from '$lib/page-utils';
 
 	let {
+		imageLoading,
 		tcxLoading,
 		values,
 		imageBitmap,
@@ -51,6 +52,7 @@
 		onCopyClick,
 		onShareClick
 	}: {
+		imageLoading: boolean;
 		tcxLoading: boolean;
 		values: StatValues | null;
 		imageBitmap: ImageBitmap | null;
@@ -102,7 +104,14 @@
 	aria-label="Upload controls"
 >
 	<h2 class="mb-4 text-base font-semibold tracking-tight">Upload</h2>
-	<UploadSection {tcxLoading} {onImageChange} {onTcxChange} bind:imageInputEl bind:tcxInputEl />
+	<UploadSection
+		{imageLoading}
+		{tcxLoading}
+		{onImageChange}
+		{onTcxChange}
+		bind:imageInputEl
+		bind:tcxInputEl
+	/>
 
 	{#if values && imageBitmap}
 		<hr class="my-6 border-t border-border" />

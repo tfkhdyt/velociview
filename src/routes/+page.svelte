@@ -217,6 +217,8 @@
 
 	let values: StatValues | null = $state(null);
 
+	// Loading indicators for file processing
+	let imageLoading: boolean = $state(false);
 	// Loading indicator for TCX parsing
 	let tcxLoading: boolean = $state(false);
 
@@ -253,21 +255,26 @@
 	}
 
 	async function loadImageFile(file: File): Promise<void> {
-		if (imageUrl) URL.revokeObjectURL(imageUrl);
-		imageUrl = URL.createObjectURL(file);
-		// derive a safe base name from the original file name (without extension)
-		const rawBase = file.name.replace(/\.[^.]+$/, '');
-		imageBaseName = rawBase
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/gi, '-')
-			.replace(/^-+|-+$/g, '');
-		const bmp = await createImageBitmap(file);
-		imageBitmap = bmp;
-		originalWidth = bmp.width;
-		originalHeight = bmp.height;
-		// Force immediate render and update floating visibility
-		requestRender();
-		updateFloatingVisible();
+		imageLoading = true;
+		try {
+			if (imageUrl) URL.revokeObjectURL(imageUrl);
+			imageUrl = URL.createObjectURL(file);
+			// derive a safe base name from the original file name (without extension)
+			const rawBase = file.name.replace(/\.[^.]+$/, '');
+			imageBaseName = rawBase
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/gi, '-')
+				.replace(/^-+|-+$/g, '');
+			const bmp = await createImageBitmap(file);
+			imageBitmap = bmp;
+			originalWidth = bmp.width;
+			originalHeight = bmp.height;
+			// Force immediate render and update floating visibility
+			requestRender();
+			updateFloatingVisible();
+		} finally {
+			imageLoading = false;
+		}
 	}
 
 	async function handleImageChange(files: FileList | null): Promise<void> {
@@ -591,6 +598,7 @@
 	</div>
 	<div class="grid items-start gap-6 lg:grid-cols-2">
 		<ControlsCard
+			{imageLoading}
 			{tcxLoading}
 			{values}
 			{imageBitmap}
@@ -659,6 +667,7 @@
 		<PreviewCard
 			bind:this={previewRef}
 			hasImage={Boolean(imageUrl)}
+			loading={imageLoading || tcxLoading}
 			{imageBitmap}
 			{values}
 			{backdropOpacity}
