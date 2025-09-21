@@ -24,7 +24,7 @@
 	class="rounded-xl border border-border bg-white/20 p-4 backdrop-blur [[data-theme=dark]_&]:bg-zinc-900/20"
 >
 	<legend class="form-label px-1">Fields</legend>
-	<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+	<div class="grid grid-cols-2 gap-3 sm:grid-cols-2">
 		{#each OVERLAY_FIELD_ORDER as f (f)}
 			<label class="inline-flex items-center gap-2 text-sm">
 				<input

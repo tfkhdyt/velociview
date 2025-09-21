@@ -24,7 +24,7 @@
 
 <div class="space-y-2">
 	<h3 class="text-sm font-semibold tracking-tight">Appearance</h3>
-	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+	<div class="grid grid-cols-2 gap-4 sm:grid-cols-2">
 		<label class="block text-sm">
 			<span class="form-label">Font</span>
 			<select
@@ -43,30 +43,6 @@
 			</select>
 		</label>
 		<label class="block text-sm">
-			<span class="form-label">Scale</span>
-			<input
-				type="range"
-				min="0.5"
-				max="3"
-				step="0.05"
-				bind:value={scale}
-				oninput={(e) => onScaleChange(Number((e.target as HTMLInputElement).value))}
-				class="form-range"
-			/>
-		</label>
-		<label class="block text-sm">
-			<span class="form-label">Darken image</span>
-			<input
-				type="range"
-				min="0"
-				max="0.9"
-				step="0.01"
-				bind:value={backdropOpacity}
-				oninput={(e) => onBackdropOpacityChange(Number((e.target as HTMLInputElement).value))}
-				class="form-range"
-			/>
-		</label>
-		<label class="block text-sm">
 			<span class="form-label">Alignment</span>
 			<select
 				bind:value={textAlign}
@@ -78,6 +54,52 @@
 				<option value="center">Center</option>
 				<option value="right">Right</option>
 			</select>
+		</label>
+		<label class="block text-sm">
+			<span class="form-label">Scale</span>
+			<div class="flex items-center gap-2">
+				<input
+					type="range"
+					min="0.5"
+					max="3"
+					step="0.05"
+					bind:value={scale}
+					oninput={(e) => onScaleChange(Number((e.target as HTMLInputElement).value))}
+					class="form-range"
+				/>
+				<input
+					type="number"
+					min="0.5"
+					max="3"
+					step="0.05"
+					bind:value={scale}
+					oninput={(e) => onScaleChange(Number((e.target as HTMLInputElement).value))}
+					class="form-control w-20"
+				/>
+			</div>
+		</label>
+		<label class="block text-sm">
+			<span class="form-label">Darken image</span>
+			<div class="flex items-center gap-2">
+				<input
+					type="range"
+					min="0"
+					max="0.9"
+					step="0.01"
+					bind:value={backdropOpacity}
+					oninput={(e) => onBackdropOpacityChange(Number((e.target as HTMLInputElement).value))}
+					class="form-range"
+				/>
+				<input
+					type="number"
+					min="0"
+					max="0.9"
+					step="0.01"
+					bind:value={backdropOpacity}
+					oninput={(e) => onBackdropOpacityChange(Number((e.target as HTMLInputElement).value))}
+					class="form-control w-20"
+				/>
+			</div>
 		</label>
 	</div>
 </div>

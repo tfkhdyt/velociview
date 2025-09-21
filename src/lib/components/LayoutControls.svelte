@@ -30,7 +30,7 @@
 
 <div class="space-y-2">
 	<h3 class="text-sm font-semibold tracking-tight">Layout</h3>
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 		<label class="block text-sm">
 			<span class="form-label">Mode</span>
 			<select
@@ -61,15 +61,26 @@
 		{#if gridMode !== 'list'}
 			<label class="block text-sm">
 				<span class="form-label">Grid spacing</span>
-				<input
-					type="range"
-					min="0"
-					max="4"
-					step="0.05"
-					bind:value={gridGapScale}
-					oninput={(e) => updateGap(Number((e.target as HTMLInputElement).value))}
-					class="form-range"
-				/>
+				<div class="flex items-center gap-2">
+					<input
+						type="range"
+						min="0"
+						max="4"
+						step="0.05"
+						bind:value={gridGapScale}
+						oninput={(e) => updateGap(Number((e.target as HTMLInputElement).value))}
+						class="form-range"
+					/>
+					<input
+						type="number"
+						min="0"
+						max="4"
+						step="0.05"
+						bind:value={gridGapScale}
+						oninput={(e) => updateGap(Number((e.target as HTMLInputElement).value))}
+						class="form-control w-20"
+					/>
+				</div>
 			</label>
 		{/if}
 	</div>

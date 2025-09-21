@@ -12,7 +12,7 @@
 
 <div class="space-y-2">
 	<h3 class="text-sm font-semibold tracking-tight">Position</h3>
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 		<label class="block text-sm">
 			<span class="form-label">Preset</span>
 			<select
