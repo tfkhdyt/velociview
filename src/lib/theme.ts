@@ -31,13 +31,23 @@ export function applyTheme(theme: Theme): void {
 	if (typeof window === 'undefined') return;
 
 	const resolvedTheme = getResolvedTheme(theme);
-	const root = document.documentElement;
+	const root: HTMLElement = document.documentElement;
+
+	// Temporarily disable transitions/animations while flipping theme
+	root.classList.add('theme-transition-disabled');
 
 	if (resolvedTheme === 'dark') {
 		root.setAttribute('data-theme', 'dark');
+		(root.style as CSSStyleDeclaration).colorScheme = 'dark';
 	} else {
 		root.setAttribute('data-theme', 'light');
+		(root.style as CSSStyleDeclaration).colorScheme = 'light';
 	}
+
+	// Re-enable transitions on next frame after styles have applied
+	requestAnimationFrame(() => {
+		root.classList.remove('theme-transition-disabled');
+	});
 }
 
 export function initializeTheme(): Theme {

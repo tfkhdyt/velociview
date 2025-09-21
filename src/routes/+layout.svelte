@@ -21,13 +21,16 @@
 		rel="stylesheet"
 	/>
 	<title>VelociView</title>
-	<meta name="description" content="VelociView — TCX image overlay generator for activity stats." />
+	<meta
+		name="description"
+		content="VelociView — customizable Strava‑style activity stats generator. Create clean overlays from your photo + TCX."
+	/>
 </svelte:head>
 
-<div class="flex min-h-dvh flex-col text-foreground transition-colors duration-300">
+<div class="flex min-h-dvh flex-col text-foreground">
 	<header class="container py-6">
 		<div class="flex items-center justify-between">
-			<h1 class="text-xl font-semibold tracking-tight">VelociView</h1>
+			<h1 class="text-2xl font-semibold tracking-tight">VelociView</h1>
 			<nav aria-label="Header" class="flex gap-x-6 text-sm">
 				<a href={resolve('/')} class="hover:underline">Home</a>
 				<a href={resolve('/about')} class="hover:underline">About</a>

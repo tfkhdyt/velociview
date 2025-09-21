@@ -13,9 +13,9 @@
 <section class="mx-auto max-w-prose">
 	<h2 class="mb-4 text-xl font-semibold tracking-tight">About</h2>
 	<p class="mb-3">
-		VelociView is a TCX image overlay generator for activity statistics. It helps you turn your
+		VelociView is a customizable Strava‑style activity statistics generator. It helps you turn your
 		workouts into clean, shareable visuals by extracting key metrics from your TCX files and
-		composing them into a customizable overlay.
+		composing them into a polished overlay that matches your style.
 	</p>
 
 	<h3 class="mb-2 text-base font-semibold tracking-tight">What it does</h3>
@@ -36,6 +36,28 @@
 			for JPEG/WebP).
 		</li>
 	</ol>
+
+	<h3 class="mb-2 text-base font-semibold tracking-tight">What is a TCX file?</h3>
+	<p class="mb-3">
+		A <code>.tcx</code> (Training Center XML) file is a common workout data format containing GPS tracks
+		and activity stats like distance, time, pace/speed, and elevation. Many fitness apps and devices
+		can export your activity as TCX.
+	</p>
+
+	<h3 class="mb-2 text-base font-semibold tracking-tight">Where to get a TCX</h3>
+	<ul class="mb-3 list-disc space-y-1 pl-5">
+		<li>
+			<strong>Strava</strong>: Open an activity → <em>...</em> menu → <em>Export TCX</em>.
+		</li>
+		<li>
+			<strong>Garmin Connect</strong>: Activity page → <em>Gear</em> icon → <em>Export as TCX</em>.
+		</li>
+		<li>
+			<strong>Wahoo</strong> / <strong>Polar</strong> / others: Activity details → export/download →
+			choose
+			<em>TCX</em>.
+		</li>
+	</ul>
 
 	<h3 class="mb-2 text-base font-semibold tracking-tight">Requirements</h3>
 	<ul class="mb-3 list-disc space-y-1 pl-5">

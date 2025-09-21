@@ -550,10 +550,20 @@
 </script>
 
 <section class="space-y-6">
+	<div class="mb-8">
+		<h2 class="text-xl font-semibold tracking-tight">
+			Customizable Strava‑style activity stats generator
+		</h2>
+		<p class="mt-1 text-sm text-muted">
+			VelociView turns your workouts into clean, shareable overlays. Upload a photo and a
+			<code>.tcx</code> file, pick the stats you want, then fine‑tune layout and appearance to match
+			your style.
+		</p>
+	</div>
 	<div class="grid items-start gap-6 lg:grid-cols-2">
 		<!-- Controls Card -->
 		<div
-			class={`rounded-2xl border bg-white/30 p-5 shadow-lg backdrop-blur-md transition-colors duration-200 [[data-theme=dark]_&]:bg-zinc-900/30 ${
+			class={`rounded-2xl border bg-white/30 p-5 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30 ${
 				isDragActiveUpload ? 'border-accent' : 'border-border'
 			}`}
 			ondragover={handleDragOver}
@@ -662,7 +672,7 @@
 
 		<!-- Preview Card -->
 		<div
-			class={`rounded-2xl border bg-white/30 p-4 shadow-lg backdrop-blur-md transition-colors duration-200 [[data-theme=dark]_&]:bg-zinc-900/30 ${
+			class={`rounded-2xl border bg-white/30 p-4 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30 ${
 				isDragActivePreview ? 'border-accent' : 'border-border'
 			}`}
 			ondragover={handleDragOver}
@@ -676,7 +686,7 @@
 				<div class="relative">
 					<canvas
 						bind:this={previewCanvasEl}
-						class="h-auto w-full cursor-move rounded-lg border border-border"
+						class="h-auto w-full cursor-move touch-none rounded-lg border border-border select-none"
 						onpointerdown={handlePointerDown}
 						onpointermove={handlePointerMove}
 						onpointerup={handlePointerUp}
@@ -686,7 +696,7 @@
 				</div>
 			{:else}
 				<div
-					class={`flex aspect-video w-full items-center justify-center rounded-lg border border-dashed text-sm transition-colors ${
+					class={`flex aspect-video w-full items-center justify-center rounded-lg border border-dashed text-sm ${
 						isDragActivePreview ? 'border-accent text-accent' : 'border-border text-muted'
 					}`}
 					style={isDragActivePreview
