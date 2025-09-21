@@ -720,7 +720,7 @@
 			aria-label="Upload controls"
 		>
 			<h2 class="mb-4 text-base font-semibold tracking-tight">Upload</h2>
-			<!-- Whole card acts as dropzone -->
+
 			<UploadSection
 				{tcxLoading}
 				onImageChange={handleImageChange}
@@ -730,7 +730,11 @@
 			/>
 
 			{#if values && imageBitmap}
+				<hr class="my-6 border-t border-border" />
+
 				<div class="mt-6 space-y-5">
+					<h2 class="mb-4 text-base font-semibold tracking-tight">Control</h2>
+
 					<FieldsSelector
 						{selectedFields}
 						onChange={(next) => {
@@ -740,7 +744,7 @@
 					/>
 
 					<!-- Reordered controls: Position, Layout, Appearance -->
-					<div class="space-y-5">
+					<div class="space-y-8 pb-4">
 						<!-- Position -->
 						<PositionControls
 							{positionPreset}
@@ -825,6 +829,7 @@
 			role="region"
 			aria-label="Preview"
 		>
+			<h2 class="mb-4 text-base font-semibold tracking-tight">Preview</h2>
 			{#if imageUrl}
 				<div class="relative">
 					<canvas
