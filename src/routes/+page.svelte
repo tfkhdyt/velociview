@@ -172,11 +172,12 @@
 				(entries) => {
 					const entry = entries[0];
 					const ratio = entry ? entry.intersectionRatio : 0;
-					isPreviewInView = ratio >= 0.5;
+					// Consider fully visible only when ~100% of the element is within the viewport
+					isPreviewInView = ratio >= 0.999;
 					updateFloatingVisible();
 					if (!isPreviewInView) scheduleMirror();
 				},
-				{ root: null, threshold: 0.5 }
+				{ root: null, threshold: [0, 1] }
 			);
 			io.observe(previewCardEl);
 		}
@@ -425,17 +426,23 @@
 		return { w: targetW, h: targetH, scale: exportScaleFactor };
 	}
 
-	async function exportImage(): Promise<void> {
-		// Ensure web fonts (e.g., Inter) are loaded before rasterizing to PNG
+	async function ensureFontsReady(): Promise<void> {
 		try {
 			await (document.fonts as FontFaceSet).ready;
 		} catch {
 			// ignore if Font Loading API unsupported
 		}
+	}
+
+	type RenderResult = { blob: Blob; mime: string; ext: string };
+
+	async function renderToCanvasAndBlob(
+		format: 'png' | 'jpeg' | 'webp'
+	): Promise<RenderResult | null> {
 		const c = canvasEl;
 		ensureExportContext();
-		if (!imageBitmap || !ctx || !values || !c) return;
-		const { mime, ext } = getMimeAndExt(exportFormat);
+		if (!imageBitmap || !ctx || !values || !c) return null;
+		const { mime, ext } = getMimeAndExt(format);
 		const { w: targetW, h: targetH, scale: exportScaleFactor } = getExportDimensionsAndScale(mime);
 		c.width = targetW;
 		c.height = targetH;
@@ -452,16 +459,22 @@
 			scale: scale * exportScaleFactor
 		};
 		renderOverlay(ctx, targetW, targetH, values, exportOptions);
-		// Watermark (export only)
+		// Watermark is applied on all exported/copy/share outputs
 		drawWatermark(ctx, targetW, targetH, fontFamily);
-		const qualityParam =
-			exportFormat === 'png' ? undefined : Math.max(0, Math.min(1, exportQuality));
+		const qualityParam = format === 'png' ? undefined : Math.max(0, Math.min(1, exportQuality));
 		const blob: Blob | null = await new Promise((resolve) => c.toBlob(resolve, mime, qualityParam));
-		if (!blob) return;
-		const url = URL.createObjectURL(blob);
+		if (!blob) return null;
+		return { blob, mime, ext };
+	}
+
+	async function exportImage(): Promise<void> {
+		await ensureFontsReady();
+		const result = await renderToCanvasAndBlob(exportFormat);
+		if (!result || !values) return;
+		const url = URL.createObjectURL(result.blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = buildDownloadFilename(imageBaseName, values, ext);
+		a.download = buildDownloadFilename(imageBaseName, values, result.ext);
 		document.body.appendChild(a);
 		a.click();
 		a.remove();
@@ -472,52 +485,15 @@
 		if (sharing) return;
 		sharing = true;
 		try {
-			// Ensure web fonts are ready
-			try {
-				await (document.fonts as FontFaceSet).ready;
-			} catch {
-				// ignore if Font Loading API unsupported
-			}
-			const c = canvasEl;
-			ensureExportContext();
-			if (!imageBitmap || !ctx || !values || !c) return;
-			const { mime, ext } = getMimeAndExt(exportFormat);
-			const {
-				w: targetW,
-				h: targetH,
-				scale: exportScaleFactor
-			} = getExportDimensionsAndScale(mime);
-			c.width = targetW;
-			c.height = targetH;
-			ctx.clearRect(0, 0, targetW, targetH);
-			ctx.drawImage(imageBitmap, 0, 0, targetW, targetH);
-			if (backdropOpacity > 0) {
-				ctx.save();
-				ctx.fillStyle = `rgba(0, 0, 0, ${backdropOpacity})`;
-				ctx.fillRect(0, 0, targetW, targetH);
-				ctx.restore();
-			}
-			const exportOptions: OverlayOptions = {
-				...getOverlayOptions(),
-				scale: scale * exportScaleFactor
-			};
-			renderOverlay(ctx, targetW, targetH, values, exportOptions);
-			// Watermark on share as well
-			drawWatermark(ctx, targetW, targetH, fontFamily);
-			// use previously computed mime/ext
-			const qualityParam =
-				exportFormat === 'png' ? undefined : Math.max(0, Math.min(1, exportQuality));
-			const blob: Blob | null = await new Promise((resolve) =>
-				c.toBlob(resolve, mime, qualityParam)
-			);
-			if (!blob) return;
-			const filename = buildDownloadFilename(imageBaseName, values, ext);
+			await ensureFontsReady();
+			const result = await renderToCanvasAndBlob(exportFormat);
+			if (!result || !values) return;
+			const filename = buildDownloadFilename(imageBaseName, values, result.ext);
 			if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-				// Prefer files if supported
 				let shared = false;
 				if (typeof navigator.canShare === 'function') {
 					try {
-						const file = new File([blob], filename, { type: mime });
+						const file = new File([result.blob], filename, { type: result.mime });
 						if (navigator.canShare({ files: [file] })) {
 							await navigator.share({ files: [file], title: 'VelociView overlay' });
 							shared = true;
@@ -527,8 +503,7 @@
 					}
 				}
 				if (!shared) {
-					// Fallback to sharing a blob URL if files not supported
-					const url = URL.createObjectURL(blob);
+					const url = URL.createObjectURL(result.blob);
 					try {
 						await navigator.share({ title: 'VelociView overlay', url });
 					} finally {
@@ -536,8 +511,7 @@
 					}
 				}
 			} else {
-				// Fallback to normal download if share is unavailable
-				const url = URL.createObjectURL(blob);
+				const url = URL.createObjectURL(result.blob);
 				const a = document.createElement('a');
 				a.href = url;
 				a.download = filename;
@@ -556,63 +530,29 @@
 		copying = true;
 		justCopied = false;
 		try {
-			// Ensure web fonts are ready before rasterizing
-			try {
-				await (document.fonts as FontFaceSet).ready;
-			} catch {
-				// ignore if unsupported
-			}
-			const c = canvasEl;
-			ensureExportContext();
-			if (!imageBitmap || !ctx || !values || !c) return;
-			const mime = getMimeAndExt(exportFormat).mime;
-			const {
-				w: targetW,
-				h: targetH,
-				scale: exportScaleFactor
-			} = getExportDimensionsAndScale(mime);
-			c.width = targetW;
-			c.height = targetH;
-			ctx.clearRect(0, 0, targetW, targetH);
-			ctx.drawImage(imageBitmap, 0, 0, targetW, targetH);
-			if (backdropOpacity > 0) {
-				ctx.save();
-				ctx.fillStyle = `rgba(0, 0, 0, ${backdropOpacity})`;
-				ctx.fillRect(0, 0, targetW, targetH);
-				ctx.restore();
-			}
-			const exportOptions: OverlayOptions = {
-				...getOverlayOptions(),
-				scale: scale * exportScaleFactor
-			};
-			renderOverlay(ctx, targetW, targetH, values, exportOptions);
-			// Watermark (copy to clipboard)
-			drawWatermark(ctx, targetW, targetH, fontFamily);
+			await ensureFontsReady();
+			const initial = await renderToCanvasAndBlob(exportFormat);
+			if (!initial) return;
 			if (!canCopyToClipboard || !clipboardItemCtor) {
 				await exportImage();
 				return;
 			}
 			const ctor: ClipboardItemCtor = clipboardItemCtor;
-			const mime2 = getMimeAndExt(exportFormat).mime;
-			const tryWrite = async (targetMime: string, quality?: number): Promise<boolean> => {
-				const b: Blob | null = await new Promise((resolve) =>
-					c.toBlob(resolve, targetMime, quality)
-				);
-				if (!b) return false;
+			const tryWrite = async (b: Blob, mimeType: string): Promise<boolean> => {
 				try {
-					const item = new ctor({ [targetMime]: b });
+					const item = new ctor({ [mimeType]: b });
 					await navigator.clipboard.write([item]);
 					return true;
 				} catch {
 					return false;
 				}
 			};
-			const qualityParam =
-				exportFormat === 'png' ? undefined : Math.max(0, Math.min(1, exportQuality));
-			let success = await tryWrite(mime2, qualityParam);
-			if (!success && mime2 !== 'image/png') {
-				// Fallback to PNG if chosen mime is unsupported by the clipboard or failed
-				success = await tryWrite('image/png');
+			let success = await tryWrite(initial.blob, initial.mime);
+			if (!success && initial.mime !== 'image/png') {
+				const pngRes = await renderToCanvasAndBlob('png');
+				if (pngRes) {
+					success = await tryWrite(pngRes.blob, 'image/png');
+				}
 			}
 			if (!success) {
 				await exportImage();
@@ -733,6 +673,9 @@
 			{gridGapScale}
 			bind:containerEl={previewCardEl}
 			bind:previewCanvasEl
+			onRendered={() => {
+				if (floatingVisible) scheduleMirror();
+			}}
 			onPositionChange={({ x, y }) => {
 				posX = x;
 				posY = y;

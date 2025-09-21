@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { cubicOut } from 'svelte/easing';
+	import { fly } from 'svelte/transition';
 	let {
 		visible,
 		floatingCanvasEl = $bindable(),
@@ -12,6 +14,7 @@
 
 {#if visible}
 	<button
+		transition:fly={{ x: -16, y: 16, duration: 180, easing: cubicOut }}
 		class="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-xl border border-border bg-white/80 px-2 py-2 shadow-lg ring-0 backdrop-blur-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent md:hidden [[data-theme=dark]_&]:bg-zinc-900/70"
 		type="button"
 		onclick={onClick}

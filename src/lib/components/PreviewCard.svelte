@@ -24,7 +24,8 @@
 		// expose elements to parent
 		containerEl = $bindable(),
 		previewCanvasEl = $bindable(),
-		onPositionChange
+		onPositionChange,
+		onRendered
 	}: {
 		hasImage: boolean;
 		imageBitmap: ImageBitmap | null;
@@ -42,6 +43,7 @@
 		containerEl?: HTMLDivElement | null;
 		previewCanvasEl?: HTMLCanvasElement | null;
 		onPositionChange: (pos: { x: number; y: number }) => void;
+		onRendered?: () => void;
 	} = $props();
 
 	let previewCtx: CanvasRenderingContext2D | null = null;
@@ -145,6 +147,9 @@
 			}
 			previewCtx.restore();
 		}
+
+		// Notify parent that a render just completed
+		onRendered?.();
 	}
 
 	export function requestRender(): void {
