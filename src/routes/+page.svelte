@@ -1003,7 +1003,7 @@
 	>
 		<canvas
 			bind:this={floatingCanvasEl}
-			class="block h-24 w-[11rem] rounded-lg border border-border bg-transparent"
+			class="block h-auto w-[42vw] max-w-[11rem] min-w-[8rem] rounded-lg border border-border bg-transparent"
 		></canvas>
 		<span class="sr-only">Open preview</span>
 	</button>
