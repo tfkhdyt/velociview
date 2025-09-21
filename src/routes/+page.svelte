@@ -24,7 +24,7 @@
 		type PositionPreset
 	} from '$lib/page-utils';
 	import { parseTcxToOverlayValues } from '$lib/tcx';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	// removed unused file state to satisfy linter
 	let imageBitmap: ImageBitmap | null = $state(null);
@@ -57,6 +57,35 @@
 	let gridMode = $state<'list' | 'auto' | 'fixed'>('list');
 	let gridColumns = $state(2);
 	let gridGapScale = $state(1);
+
+	// Mobile floating preview state
+	let previewCardEl: HTMLDivElement | null = $state(null);
+	let floatingCanvasEl: HTMLCanvasElement | null = $state(null);
+	let isPreviewInView: boolean = $state(true);
+	let isMobile: boolean = $state(false);
+	let floatingVisible: boolean = $state(false);
+	let mirrorRafId: number = 0;
+
+	function scheduleMirror(): void {
+		if (typeof window === 'undefined') return;
+		if (mirrorRafId) cancelAnimationFrame(mirrorRafId);
+		mirrorRafId = requestAnimationFrame(() => {
+			mirrorRafId = 0;
+			mirrorFloatingFromPreview();
+		});
+	}
+
+	function updateFloatingVisible(): void {
+		const next = Boolean(imageUrl) && isMobile && !isPreviewInView;
+		const becameTrue = next && !floatingVisible;
+		floatingVisible = next;
+		if (becameTrue) {
+			// Ensure element is mounted and styled before drawing
+			tick()
+				.then(() => tick())
+				.then(() => scheduleMirror());
+		}
+	}
 
 	// Export options
 	let exportFormat = $state<'png' | 'jpeg' | 'webp'>('jpeg');
@@ -133,11 +162,58 @@
 		document.addEventListener('dragleave', handleDocDragLeave);
 		document.addEventListener('drop', handleDocDrop);
 
+		// Floating preview observers/listeners
+		let io: IntersectionObserver | null = null;
+		let mql: MediaQueryList | null = null;
+		let onScrollHandler: (() => void) | null = null;
+		const handleMqChange = (e: MediaQueryListEvent): void => {
+			isMobile = e.matches;
+			updateFloatingVisible();
+			mirrorFloatingFromPreview();
+		};
+		function setupIO(): void {
+			if (!previewCardEl) return;
+			io = new IntersectionObserver(
+				(entries) => {
+					const entry = entries[0];
+					const ratio = entry ? entry.intersectionRatio : 0;
+					isPreviewInView = ratio >= 0.5;
+					updateFloatingVisible();
+					if (!isPreviewInView) scheduleMirror();
+				},
+				{ root: null, threshold: 0.5 }
+			);
+			io.observe(previewCardEl);
+		}
+		if (typeof window !== 'undefined') {
+			// Mobile breakpoint ~ md (<768px)
+			mql = window.matchMedia('(max-width: 767px)');
+			isMobile = mql.matches;
+			mql.addEventListener('change', handleMqChange);
+			setupIO();
+			window.addEventListener('resize', scheduleMirror, {
+				passive: true
+			} as AddEventListenerOptions);
+			onScrollHandler = () => {
+				if (floatingVisible) scheduleMirror();
+			};
+			window.addEventListener('scroll', onScrollHandler, {
+				passive: true
+			} as AddEventListenerOptions);
+		}
+
 		return () => {
 			document.removeEventListener('dragover', handleDocDragOver);
 			document.removeEventListener('dragenter', handleDocDragEnter);
 			document.removeEventListener('dragleave', handleDocDragLeave);
 			document.removeEventListener('drop', handleDocDrop);
+			io?.disconnect();
+			if (mql) mql.removeEventListener('change', handleMqChange);
+			window.removeEventListener('resize', scheduleMirror as EventListener);
+			if (onScrollHandler) {
+				window.removeEventListener('scroll', onScrollHandler as EventListener);
+				onScrollHandler = null;
+			}
 		};
 	});
 
@@ -197,8 +273,9 @@
 		imageBitmap = bmp;
 		originalWidth = bmp.width;
 		originalHeight = bmp.height;
-		// Force immediate render
+		// Force immediate render and update floating visibility
 		requestRender();
+		updateFloatingVisible();
 	}
 
 	async function handleImageChange(files: FileList | null): Promise<void> {
@@ -341,12 +418,72 @@
 			}
 			previewCtx.restore();
 		}
+
+		// Update floating preview after main render
+		mirrorFloatingFromPreview();
 	}
 
 	// Safe render function that handles all the checks
 	function requestRender(): void {
 		// Use setTimeout to ensure state has settled
 		setTimeout(() => renderPreview(), 10);
+	}
+
+	function mirrorFloatingFromPreview(): void {
+		try {
+			if (!floatingCanvasEl || !previewCanvasEl) return;
+			if (!imageBitmap) return;
+			// Keep it updated even if hidden, but size only when needed
+			const srcW = previewCanvasEl.width || 0;
+			const srcH = previewCanvasEl.height || 0;
+			if (!srcW || !srcH) return;
+			// CSS target size for mobile mini preview
+			const cssMaxWidth = 176; // ~11rem
+			const cssMinWidth = 128; // ~8rem
+			let cssW = 0;
+			let cssH = 0;
+			// Prefer actual rendered width for accurate DPR sizing
+			const rect = floatingCanvasEl.getBoundingClientRect();
+			if (rect && rect.width) {
+				cssW = Math.round(rect.width);
+				cssH = Math.round((cssW / srcW) * srcH);
+			} else {
+				const viewportBased = Math.round(
+					(typeof window !== 'undefined' ? window.innerWidth : 360) * 0.42
+				);
+				cssW = Math.max(cssMinWidth, Math.min(cssMaxWidth, viewportBased));
+				cssH = Math.round((cssW / srcW) * srcH);
+			}
+			// Device pixel ratio for crispness
+			const dpr =
+				typeof window !== 'undefined'
+					? Math.max(1, Math.min(3, Math.round(window.devicePixelRatio || 1)))
+					: 1;
+			// Only update canvas backing store dimensions if changed
+			const targetW = cssW * dpr;
+			const targetH = cssH * dpr;
+			if (floatingCanvasEl.width !== targetW || floatingCanvasEl.height !== targetH) {
+				floatingCanvasEl.width = targetW;
+				floatingCanvasEl.height = targetH;
+			}
+			// Draw scaled copy
+			const fctx = floatingCanvasEl.getContext('2d');
+			if (!fctx) return;
+			fctx.clearRect(0, 0, targetW, targetH);
+			fctx.imageSmoothingEnabled = true;
+			fctx.imageSmoothingQuality = 'high';
+			fctx.drawImage(previewCanvasEl, 0, 0, srcW, srcH, 0, 0, targetW, targetH);
+		} catch {
+			// ignore drawing errors
+		}
+	}
+
+	function scrollPreviewIntoView(): void {
+		try {
+			previewCardEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		} catch {
+			// ignore
+		}
 	}
 
 	function getOverlayOptions(): OverlayOptions {
@@ -828,6 +965,7 @@
 			class="rounded-2xl border border-border bg-white/30 p-4 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30"
 			role="region"
 			aria-label="Preview"
+			bind:this={previewCardEl}
 		>
 			<h2 class="mb-4 text-base font-semibold tracking-tight">Preview</h2>
 			{#if imageUrl}
@@ -853,6 +991,23 @@
 		</div>
 	</div>
 </section>
+
+{#if floatingVisible}
+	<!-- Mobile floating mini preview -->
+	<button
+		class="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-xl border border-border bg-white/80 px-2 py-2 shadow-lg ring-0 backdrop-blur-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent md:hidden [[data-theme=dark]_&]:bg-zinc-900/70"
+		type="button"
+		onclick={scrollPreviewIntoView}
+		aria-label="Scroll to main preview"
+		title="Scroll to main preview"
+	>
+		<canvas
+			bind:this={floatingCanvasEl}
+			class="block h-24 w-[11rem] rounded-lg border border-border bg-transparent"
+		></canvas>
+		<span class="sr-only">Open preview</span>
+	</button>
+{/if}
 
 {#if isDragActivePage}
 	<div class="pointer-events-none fixed inset-0 z-50">
