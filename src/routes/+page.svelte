@@ -105,6 +105,19 @@
 				requestRender();
 			});
 		}
+
+		// Register document-level dropzone listeners to make whole page a drop target
+		document.addEventListener('dragover', handleDocDragOver);
+		document.addEventListener('dragenter', handleDocDragEnter);
+		document.addEventListener('dragleave', handleDocDragLeave);
+		document.addEventListener('drop', handleDocDrop);
+
+		return () => {
+			document.removeEventListener('dragover', handleDocDragOver);
+			document.removeEventListener('dragenter', handleDocDragEnter);
+			document.removeEventListener('dragleave', handleDocDragLeave);
+			document.removeEventListener('drop', handleDocDrop);
+		};
 	});
 
 	let positionPreset = $state<PositionPreset | 'custom'>('bottom left');
@@ -114,11 +127,9 @@
 	// Loading indicator for TCX parsing
 	let tcxLoading: boolean = $state(false);
 
-	// Drag & drop states
-	let isDragActiveUpload = $state(false);
-	let isDragActivePreview = $state(false);
-	let uploadDragCounter = $state(0);
-	let previewDragCounter = $state(0);
+	// Page-wide dropzone state
+	let pageDragCounter = $state(0);
+	let isDragActivePage = $state(false);
 
 	// File input references for reset functionality
 	let imageInputEl: HTMLInputElement | null = $state(null);
@@ -199,43 +210,23 @@
 		if (tcx) await loadTcxFile(tcx);
 	}
 
-	// removed unused handler
-
-	function handleDragOver(e: DragEvent): void {
+	// Document-level (page-wide) dropzone handlers
+	function handleDocDragOver(e: DragEvent): void {
 		e.preventDefault();
 	}
-
-	function handleDragEnterUpload(e: DragEvent): void {
+	function handleDocDragEnter(e: DragEvent): void {
 		e.preventDefault();
-		uploadDragCounter++;
-		isDragActiveUpload = true;
+		pageDragCounter++;
+		isDragActivePage = true;
 	}
-	function handleDragLeaveUpload(): void {
-		uploadDragCounter = Math.max(0, uploadDragCounter - 1);
-		if (uploadDragCounter === 0) isDragActiveUpload = false;
+	function handleDocDragLeave(): void {
+		pageDragCounter = Math.max(0, pageDragCounter - 1);
+		if (pageDragCounter === 0) isDragActivePage = false;
 	}
-	async function handleDropUpload(e: DragEvent): Promise<void> {
+	async function handleDocDrop(e: DragEvent): Promise<void> {
 		e.preventDefault();
-		isDragActiveUpload = false;
-		uploadDragCounter = 0;
-		const dt = e.dataTransfer;
-		if (!dt || !dt.files || dt.files.length === 0) return;
-		await processDroppedFiles(dt.files);
-	}
-
-	function handleDragEnterPreview(e: DragEvent): void {
-		e.preventDefault();
-		previewDragCounter++;
-		isDragActivePreview = true;
-	}
-	function handleDragLeavePreview(): void {
-		previewDragCounter = Math.max(0, previewDragCounter - 1);
-		if (previewDragCounter === 0) isDragActivePreview = false;
-	}
-	async function handleDropPreview(e: DragEvent): Promise<void> {
-		e.preventDefault();
-		isDragActivePreview = false;
-		previewDragCounter = 0;
+		pageDragCounter = 0;
+		isDragActivePage = false;
 		const dt = e.dataTransfer;
 		if (!dt || !dt.files || dt.files.length === 0) return;
 		await processDroppedFiles(dt.files);
@@ -295,6 +286,39 @@
 			);
 			overlayBoxWidth = res.width;
 			overlayBoxHeight = res.height;
+		}
+
+		// Draw snapping guides (on top) when dragging near center
+		if (dragging && (showCenterGuideV || showCenterGuideH)) {
+			previewCtx.save();
+			// Try to use theme accent color; fallback to a visible teal
+			let accent = '#0ea5a4';
+			try {
+				const root = document.documentElement;
+				const val = getComputedStyle(root).getPropertyValue('--color-accent').trim();
+				if (val) accent = val;
+			} catch {
+				// ignore
+			}
+			previewCtx.strokeStyle = accent;
+			previewCtx.setLineDash([6, 6]);
+			previewCtx.lineWidth = 1;
+			previewCtx.globalAlpha = 0.85;
+			if (showCenterGuideV) {
+				const x = Math.round(previewWidth / 2) + 0.5; // crisp line
+				previewCtx.beginPath();
+				previewCtx.moveTo(x, 0);
+				previewCtx.lineTo(x, previewHeight);
+				previewCtx.stroke();
+			}
+			if (showCenterGuideH) {
+				const y = Math.round(previewHeight / 2) + 0.5; // crisp line
+				previewCtx.beginPath();
+				previewCtx.moveTo(0, y);
+				previewCtx.lineTo(previewWidth, y);
+				previewCtx.stroke();
+			}
+			previewCtx.restore();
 		}
 	}
 
@@ -479,6 +503,11 @@
 
 	let dragging = $state(false);
 	let dragAnchorOffsetCanvas = $state({ x: 0, y: 0 });
+	// Center snapping state
+	let showCenterGuideV = $state(false);
+	let showCenterGuideH = $state(false);
+	// Threshold in canvas pixels within which overlay center snaps to canvas center
+	const SNAP_THRESHOLD_PX = 10;
 
 	function handlePointerDown(e: PointerEvent): void {
 		if (!previewCanvasEl) return;
@@ -517,6 +546,24 @@
 		const availH = Math.max(1, canvasH - boxH);
 		let topLeftX = mouseX - dragAnchorOffsetCanvas.x;
 		let topLeftY = mouseY - dragAnchorOffsetCanvas.y;
+
+		// Compute center-based snapping
+		const overlayCenterX = topLeftX + boxW / 2;
+		const overlayCenterY = topLeftY + boxH / 2;
+		const canvasCenterX = canvasW / 2;
+		const canvasCenterY = canvasH / 2;
+
+		showCenterGuideV = Math.abs(overlayCenterX - canvasCenterX) <= SNAP_THRESHOLD_PX;
+		showCenterGuideH = Math.abs(overlayCenterY - canvasCenterY) <= SNAP_THRESHOLD_PX;
+
+		if (showCenterGuideV) {
+			// Snap X so that overlay center aligns to canvas center
+			topLeftX = canvasCenterX - boxW / 2;
+		}
+		if (showCenterGuideH) {
+			// Snap Y so that overlay center aligns to canvas center
+			topLeftY = canvasCenterY - boxH / 2;
+		}
 		topLeftX = Math.max(0, Math.min(availW, topLeftX));
 		topLeftY = Math.max(0, Math.min(availH, topLeftY));
 		posX = topLeftX / availW;
@@ -533,9 +580,15 @@
 			}
 		}
 		dragging = false;
+		showCenterGuideV = false;
+		showCenterGuideH = false;
+		requestRender();
 	}
 	function handlePointerCancel(): void {
 		dragging = false;
+		showCenterGuideV = false;
+		showCenterGuideH = false;
+		requestRender();
 	}
 
 	const presetMargin = 0.05; // normalized margin from edges
@@ -563,15 +616,9 @@
 	<div class="grid items-start gap-6 lg:grid-cols-2">
 		<!-- Controls Card -->
 		<div
-			class={`rounded-2xl border bg-white/30 p-5 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30 ${
-				isDragActiveUpload ? 'border-accent' : 'border-border'
-			}`}
-			ondragover={handleDragOver}
-			ondragenter={handleDragEnterUpload}
-			ondragleave={handleDragLeaveUpload}
-			ondrop={handleDropUpload}
+			class="rounded-2xl border border-border bg-white/30 p-5 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30"
 			role="region"
-			aria-label="Upload area. Drop image and TCX files to load."
+			aria-label="Upload controls"
 		>
 			<h2 class="mb-4 text-base font-semibold tracking-tight">Upload</h2>
 			<!-- Whole card acts as dropzone -->
@@ -672,15 +719,9 @@
 
 		<!-- Preview Card -->
 		<div
-			class={`rounded-2xl border bg-white/30 p-4 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30 ${
-				isDragActivePreview ? 'border-accent' : 'border-border'
-			}`}
-			ondragover={handleDragOver}
-			ondragenter={handleDragEnterPreview}
-			ondragleave={handleDragLeavePreview}
-			ondrop={handleDropPreview}
+			class="rounded-2xl border border-border bg-white/30 p-4 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30"
 			role="region"
-			aria-label="Preview area. Drop image or TCX files to load."
+			aria-label="Preview"
 		>
 			{#if imageUrl}
 				<div class="relative">
@@ -696,17 +737,28 @@
 				</div>
 			{:else}
 				<div
-					class={`flex aspect-video w-full items-center justify-center rounded-lg border border-dashed text-sm ${
-						isDragActivePreview ? 'border-accent text-accent' : 'border-border text-muted'
-					}`}
-					style={isDragActivePreview
-						? 'background-color: color-mix(in srgb, var(--color-accent) 5%, transparent);'
-						: ''}
+					class="flex aspect-video w-full items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted"
 				>
-					Upload or drop an image to start.
+					Your image will be shown here.
 				</div>
 			{/if}
 			<canvas bind:this={canvasEl} class="hidden"></canvas>
 		</div>
 	</div>
 </section>
+
+{#if isDragActivePage}
+	<div class="pointer-events-none fixed inset-0 z-50">
+		<div
+			class="absolute inset-0"
+			style="background-color: color-mix(in srgb, var(--color-accent) 7%, transparent);"
+		></div>
+		<div class="absolute inset-0 flex items-center justify-center">
+			<div
+				class="pointer-events-none rounded-xl border border-dashed border-accent bg-white/40 px-6 py-3 text-sm font-medium text-accent shadow-lg backdrop-blur-md [[data-theme=dark]_&]:bg-zinc-900/40"
+			>
+				Drop image or .tcx anywhere to load
+			</div>
+		</div>
+	</div>
+{/if}
