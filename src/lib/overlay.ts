@@ -53,6 +53,9 @@ export interface StatValues {
 export interface RenderResult {
 	width: number;
 	height: number;
+	// Top-left corner of the rendered overlay box in pixels
+	x: number;
+	y: number;
 }
 
 // Centralized label mapping for all overlay fields
@@ -439,5 +442,5 @@ export function renderOverlay(
 	}
 
 	ctx.restore();
-	return { width: boxWidth, height: boxHeight };
+	return { width: boxWidth, height: boxHeight, x, y };
 }

@@ -466,9 +466,14 @@
 			...getOverlayOptions(),
 			scale: scale * exportScaleFactor
 		};
-		renderOverlay(ctx, targetW, targetH, values, exportOptions);
-		// Watermark is applied on all exported/copy/share outputs
-		drawWatermark(ctx, targetW, targetH, fontFamily);
+		const overlayRes = renderOverlay(ctx, targetW, targetH, values, exportOptions);
+		// Watermark is applied on all exported/copy/share outputs; avoid overlay box
+		drawWatermark(ctx, targetW, targetH, fontFamily, {
+			x: overlayRes.x,
+			y: overlayRes.y,
+			width: overlayRes.width,
+			height: overlayRes.height
+		});
 		const qualityParam = format === 'png' ? undefined : Math.max(0, Math.min(1, exportQuality));
 		const blob: Blob | null = await new Promise((resolve) => c.toBlob(resolve, mime, qualityParam));
 		if (!blob) return null;

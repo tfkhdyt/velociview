@@ -196,7 +196,8 @@ export function drawWatermark(
 	ctx: CanvasRenderingContext2D,
 	imageWidth: number,
 	imageHeight: number,
-	uiFontFamily: string
+	uiFontFamily: string,
+	avoidRect?: { x: number; y: number; width: number; height: number }
 ): void {
 	const margin = Math.max(8, Math.round(imageWidth * 0.02));
 	const hasLight = Boolean(
@@ -213,8 +214,50 @@ export function drawWatermark(
 			: 4;
 		const targetH = Math.max(14, Math.min(42, Math.round(imageWidth * 0.028)));
 		const targetW = Math.max(18, Math.round(targetH * aspect));
-		const dx = imageWidth - margin - targetW;
-		const dy = imageHeight - margin - targetH;
+
+		type Corner = {
+			x: number;
+			y: number;
+			align: 'right-bottom' | 'left-bottom' | 'left-top' | 'right-top';
+		};
+		const candidates: Corner[] = [
+			{
+				x: imageWidth - margin - targetW,
+				y: imageHeight - margin - targetH,
+				align: 'right-bottom'
+			},
+			{ x: margin, y: imageHeight - margin - targetH, align: 'left-bottom' },
+			{ x: margin, y: margin, align: 'left-top' },
+			{ x: imageWidth - margin - targetW, y: margin, align: 'right-top' }
+		];
+
+		const doesOverlap = (ax: number, ay: number, aw: number, ah: number): boolean => {
+			if (!avoidRect) return false;
+			const bx = avoidRect.x;
+			const by = avoidRect.y;
+			const bw = avoidRect.width;
+			const bh = avoidRect.height;
+			return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+		};
+
+		let chosen = candidates.find((c) => !doesOverlap(c.x, c.y, targetW, targetH));
+		if (!chosen) {
+			// If all corners overlap, choose the one with smallest intersection area
+			let best: { corner: Corner; overlapArea: number } | null = null;
+			for (const c of candidates) {
+				const bx = avoidRect?.x ?? 0;
+				const by = avoidRect?.y ?? 0;
+				const bw = avoidRect?.width ?? 0;
+				const bh = avoidRect?.height ?? 0;
+				const ix = Math.max(0, Math.min(c.x + targetW, bx + bw) - Math.max(c.x, bx));
+				const iy = Math.max(0, Math.min(c.y + targetH, by + bh) - Math.max(c.y, by));
+				const area = ix * iy;
+				if (!best || area < best.overlapArea) best = { corner: c, overlapArea: area };
+			}
+			chosen = best ? best.corner : candidates[0];
+		}
+		const dx = chosen.x;
+		const dy = chosen.y;
 
 		let useDark = false;
 		try {
@@ -259,8 +302,32 @@ export function drawWatermark(
 	const text = 'VelociView';
 	const fontSize = Math.max(12, Math.min(28, Math.round(imageWidth * 0.016)));
 	const primaryFamily = uiFontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
-	const x = imageWidth - margin;
-	const y = imageHeight - margin;
+	// Measure text box for overlap determination
+	ctx.save();
+	ctx.font = `600 ${fontSize}px ${primaryFamily}`;
+	const metrics = ctx.measureText(text);
+	const textW = Math.ceil(metrics.width);
+	const textH = Math.ceil(fontSize);
+	ctx.restore();
+
+	const textCandidates = [
+		{ x: imageWidth - margin - textW, y: imageHeight - margin - textH },
+		{ x: margin, y: imageHeight - margin - textH },
+		{ x: margin, y: margin },
+		{ x: imageWidth - margin - textW, y: margin }
+	];
+	const fits = (tx: number, ty: number): boolean => {
+		if (!avoidRect) return true;
+		return !(
+			tx < avoidRect.x + avoidRect.width &&
+			tx + textW > avoidRect.x &&
+			ty < avoidRect.y + avoidRect.height &&
+			ty + textH > avoidRect.y
+		);
+	};
+	const chosenText = textCandidates.find((c) => fits(c.x, c.y)) ?? textCandidates[0];
+	const x = chosenText.x + textW; // align right for drawing with textAlign 'right'
+	const y = chosenText.y + textH; // align bottom for drawing with textBaseline 'bottom'
 	ctx.save();
 	ctx.textAlign = 'right';
 	ctx.textBaseline = 'bottom';
