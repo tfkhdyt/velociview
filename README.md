@@ -1,35 +1,78 @@
 # VelociView
 
-VelociView is a lightweight tool to generate clean, customizable image overlays of your activity stats from TCX files. Drop in a photo and a TCX file, tweak the appearance, and export a polished image for sharing.
+Generate clean, customizable image overlays of your activity stats from TCX files. Drop in a photo and a TCX file, tweak the appearance, and export a polished image ready to share.
+
+![Svelte](https://img.shields.io/badge/Svelte-F73C00?logo=svelte&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Demo](#demo)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Export Formats](#export-formats)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
 - Clean, modern overlay of key stats (distance, time, pace, elevation, etc.)
 - Flexible layout: list, auto grid, or fixed columns
-- Precise placement with drag-and-drop positioning presets
+- Precise placement with drag-and-drop and positioning presets
 - Font selection with preloaded Google Fonts
-- Adjustable scale and backdrop darkening
-- Export as PNG, JPEG, or WebP, or copy to clipboard
+- Adjustable scale and optional backdrop darkening
+- Export to PNG, JPEG, WebP, or copy directly to clipboard
+- All processing happens locally in your browser — your files never leave your device
 
-## Usage
+## Demo
 
-1. Upload or drop an image.
-2. Upload or drop a `.tcx` file.
-3. Choose which fields to display, adjust position, layout, and appearance.
-4. Export or copy the result.
+![VelociView preview](./static/preview.jpg)`
 
-## Development
+## Quick Start
 
 This project uses Svelte 5 and Vite.
 
-- Install dependencies:
-  - `pnpm install`
-- Start the dev server:
-  - `pnpm dev`
-- Build for production:
-  - `pnpm build`
-- Preview the production build:
-  - `pnpm preview`
+```bash
+pnpm install
+pnpm dev
+```
+
+Build and preview:
+
+```bash
+pnpm build
+pnpm preview
+```
+
+## Usage
+
+1. Upload or drag-and-drop a background image.
+2. Upload or drag-and-drop a `.tcx` file (e.g., from Garmin/Strava export).
+3. Choose which fields to display, then adjust position, layout, and appearance.
+4. Export the image or copy it to your clipboard.
+
+### Tips
+
+- Try the different layout modes (list, auto grid, fixed columns) to fit your image.
+- Use the scale and backdrop controls to improve legibility over busy photos.
+- Position presets are a quick starting point; fine-tune via drag-and-drop.
+
+## Export Formats
+
+- PNG
+- JPEG
+- WebP
+- Copy to clipboard
+
+## Contributing
+
+Issues and pull requests are welcome! If you find a bug or have a feature idea, please open an issue.
 
 ## License
 
