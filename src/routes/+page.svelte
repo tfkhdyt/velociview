@@ -14,6 +14,7 @@
 		buildDownloadFilename,
 		drawWatermark,
 		ensureFontLoaded,
+		ensureWatermarkReady,
 		getMimeAndExt,
 		GOOGLE_FONTS,
 		isImageFile,
@@ -475,7 +476,7 @@
 	}
 
 	async function exportImage(): Promise<void> {
-		await ensureFontsReady();
+		await Promise.all([ensureFontsReady(), ensureWatermarkReady()]);
 		const result = await renderToCanvasAndBlob(exportFormat);
 		if (!result || !values) return;
 		const url = URL.createObjectURL(result.blob);
@@ -492,7 +493,7 @@
 		if (sharing) return;
 		sharing = true;
 		try {
-			await ensureFontsReady();
+			await Promise.all([ensureFontsReady(), ensureWatermarkReady()]);
 			const result = await renderToCanvasAndBlob(exportFormat);
 			if (!result || !values) return;
 			const filename = buildDownloadFilename(imageBaseName, values, result.ext);
@@ -537,7 +538,7 @@
 		copying = true;
 		justCopied = false;
 		try {
-			await ensureFontsReady();
+			await Promise.all([ensureFontsReady(), ensureWatermarkReady()]);
 			const initial = await renderToCanvasAndBlob(exportFormat);
 			if (!initial) return;
 			if (!canCopyToClipboard || !clipboardItemCtor) {

@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import favicon from '$lib/assets/favicon.svg';
+	import { asset, resolve } from '$app/paths';
+	import darkLogoUrl from '$lib/assets/dark-logo.png';
+	import lightLogoUrl from '$lib/assets/light-logo.png';
 	import { initializeTheme } from '$lib/theme';
 	import { onMount } from 'svelte';
 	import '../app.css';
@@ -13,7 +14,8 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href={asset('/favicon-dark.ico')} media="(prefers-color-scheme: light)" />
+	<link rel="icon" href={asset('/favicon-light.ico')} media="(prefers-color-scheme: dark)" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link
@@ -30,7 +32,13 @@
 <div class="flex min-h-dvh flex-col text-foreground">
 	<header class="container py-6">
 		<div class="flex items-center justify-between">
-			<h1 class="text-2xl font-semibold tracking-tight">VelociView</h1>
+			<h1 class="text-2xl font-semibold tracking-tight">
+				<a href={resolve('/')} class="inline-flex items-center">
+					<img src={darkLogoUrl} alt="" class="logo-light h-8 w-auto" aria-hidden="true" />
+					<img src={lightLogoUrl} alt="" class="logo-dark h-8 w-auto" aria-hidden="true" />
+					<span class="sr-only">VelociView</span>
+				</a>
+			</h1>
 			<nav aria-label="Header" class="flex gap-x-6 text-sm">
 				<a href={resolve('/')} class="hover:underline">Home</a>
 				<a href={resolve('/about')} class="hover:underline">About</a>
@@ -53,3 +61,15 @@
 		</nav>
 	</footer>
 </div>
+
+<style>
+	:global(.logo-dark) {
+		display: none;
+	}
+	:global([data-theme='dark']) :global(.logo-light) {
+		display: none;
+	}
+	:global([data-theme='dark']) :global(.logo-dark) {
+		display: inline;
+	}
+</style>

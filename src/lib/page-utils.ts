@@ -1,5 +1,7 @@
 // Utility functions and shared types for the +page.svelte route
 
+import darkLogoUrl from '$lib/assets/dark-logo.png';
+import lightLogoUrl from '$lib/assets/light-logo.png';
 import type { StatValues } from '$lib/overlay';
 
 export type PositionPreset =
@@ -136,14 +138,125 @@ export function buildDownloadFilename(baseName: string, values: StatValues, ext:
 	return `${parts.join('_')}.${ext}`;
 }
 
+// Preload and cache the watermark logos for canvas drawing
+let lightWatermarkImage: HTMLImageElement | null = null;
+let darkWatermarkImage: HTMLImageElement | null = null;
+let watermarkReadyPromise: Promise<void> | null = null;
+
+export function ensureWatermarkReady(): Promise<void> {
+	// No-op on server or non-DOM environments
+	if (typeof Image === 'undefined') return Promise.resolve();
+
+	const lightReady = Boolean(
+		lightWatermarkImage && lightWatermarkImage.complete && lightWatermarkImage.naturalWidth > 0
+	);
+	const darkReady = Boolean(
+		darkWatermarkImage && darkWatermarkImage.complete && darkWatermarkImage.naturalWidth > 0
+	);
+	if (lightReady && darkReady) return Promise.resolve();
+
+	if (!lightWatermarkImage) {
+		lightWatermarkImage = new Image();
+		lightWatermarkImage.decoding = 'async';
+		lightWatermarkImage.loading = 'eager';
+		lightWatermarkImage.src = lightLogoUrl;
+	}
+	if (!darkWatermarkImage) {
+		darkWatermarkImage = new Image();
+		darkWatermarkImage.decoding = 'async';
+		darkWatermarkImage.loading = 'eager';
+		darkWatermarkImage.src = darkLogoUrl;
+	}
+
+	if (!watermarkReadyPromise) {
+		watermarkReadyPromise = new Promise((resolve) => {
+			let pending = 0;
+			const finish = (): void => {
+				if (--pending <= 0) resolve();
+			};
+			const kick = (img: HTMLImageElement | null): void => {
+				if (!img) return finish();
+				if (img.complete && img.naturalWidth > 0) return finish();
+				img.onload = finish;
+				img.onerror = finish; // fail-soft to avoid blocking export
+				pending++;
+			};
+			// Start with 1 so finish works when both are already ready
+			pending = 1;
+			kick(lightWatermarkImage);
+			kick(darkWatermarkImage);
+			finish();
+		});
+	}
+
+	return watermarkReadyPromise;
+}
+
 export function drawWatermark(
 	ctx: CanvasRenderingContext2D,
 	imageWidth: number,
 	imageHeight: number,
 	uiFontFamily: string
 ): void {
-	const text = 'Made by VelociView';
 	const margin = Math.max(8, Math.round(imageWidth * 0.02));
+	const hasLight = Boolean(
+		lightWatermarkImage && lightWatermarkImage.complete && lightWatermarkImage.naturalWidth > 0
+	);
+	const hasDark = Boolean(
+		darkWatermarkImage && darkWatermarkImage.complete && darkWatermarkImage.naturalWidth > 0
+	);
+
+	if (hasLight || hasDark) {
+		const aspectSource = hasLight ? lightWatermarkImage! : hasDark ? darkWatermarkImage! : null;
+		const aspect = aspectSource
+			? aspectSource.naturalWidth / Math.max(1, aspectSource.naturalHeight)
+			: 4;
+		const targetH = Math.max(14, Math.min(42, Math.round(imageWidth * 0.028)));
+		const targetW = Math.max(18, Math.round(targetH * aspect));
+		const dx = imageWidth - margin - targetW;
+		const dy = imageHeight - margin - targetH;
+
+		let useDark = false;
+		try {
+			const sx = Math.max(0, Math.floor(dx));
+			const sy = Math.max(0, Math.floor(dy));
+			const sw = Math.max(1, Math.min(Math.floor(targetW), Math.floor(imageWidth - sx)));
+			const sh = Math.max(1, Math.min(Math.floor(targetH), Math.floor(imageHeight - sy)));
+			const data = ctx.getImageData(sx, sy, sw, sh).data;
+			let sum = 0;
+			const pixels = Math.floor(data.length / 4);
+			for (let i = 0; i < data.length; i += 4) {
+				const r = data[i] as number;
+				const g = data[i + 1] as number;
+				const b = data[i + 2] as number;
+				// Perceptual luminance
+				sum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+			}
+			const avgLuma01 = sum / pixels / 255;
+			useDark = avgLuma01 >= 0.6;
+		} catch {
+			useDark = false;
+		}
+
+		const logo = useDark
+			? (darkWatermarkImage ?? lightWatermarkImage)
+			: (lightWatermarkImage ?? darkWatermarkImage);
+		if (logo) {
+			ctx.save();
+			ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+			ctx.shadowBlur = Math.round(targetH * 0.18);
+			ctx.shadowOffsetX = Math.round(targetH * 0.06);
+			ctx.shadowOffsetY = Math.round(targetH * 0.06);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(logo, dx, dy, targetW, targetH);
+			ctx.restore();
+			return;
+		}
+	}
+
+	// Fallback to text watermark if logo isn't available
+	const text = 'VelociView';
 	const fontSize = Math.max(12, Math.min(28, Math.round(imageWidth * 0.016)));
 	const primaryFamily = uiFontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
 	const x = imageWidth - margin;
@@ -151,25 +264,12 @@ export function drawWatermark(
 	ctx.save();
 	ctx.textAlign = 'right';
 	ctx.textBaseline = 'bottom';
-	ctx.font = `italic 600 ${fontSize}px ${primaryFamily}`;
-	// Measure for gradient width
-	const metrics = ctx.measureText(text);
-	const textWidth = Math.ceil(metrics.width);
-	// Subtle shadow for legibility (reduced size)
-	ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+	ctx.font = `600 ${fontSize}px ${primaryFamily}`;
+	ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
 	ctx.shadowBlur = Math.max(0, Math.round(fontSize * 0.25));
 	ctx.shadowOffsetX = Math.round(fontSize * 0.08);
 	ctx.shadowOffsetY = Math.round(fontSize * 0.08);
-	// Thin stroke to outline (smaller and lighter)
-	ctx.lineJoin = 'round';
-	ctx.lineWidth = 1;
-	ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-	ctx.strokeText(text, x, y);
-	// Elegant gradient fill (less transparent)
-	const grad = ctx.createLinearGradient(x - textWidth, y, x, y);
-	grad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
-	grad.addColorStop(1, 'rgba(255, 255, 255, 0.85)');
-	ctx.fillStyle = grad;
+	ctx.fillStyle = 'rgba(255,255,255,0.85)';
 	ctx.fillText(text, x, y);
 	ctx.restore();
 }
