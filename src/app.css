@@ -168,7 +168,7 @@
 		background-color: var(--color-button-secondary-hover);
 	}
 	.btn-ghost {
-		@apply text-muted underline hover:text-foreground;
+		@apply text-muted hover:text-foreground;
 	}
 	.form-control {
 		background-color: var(--color-card);
