@@ -32,7 +32,7 @@ Generate clean, customizable image overlays of your activity stats from TCX file
 
 ## Demo
 
-![VelociView preview](./static/preview.jpg)`
+![VelociView preview](./static/preview.jpg)
 
 ## Quick Start
 
