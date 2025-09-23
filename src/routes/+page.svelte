@@ -211,6 +211,10 @@
 				window.removeEventListener('scroll', onScrollHandler as EventListener);
 				onScrollHandler = null;
 			}
+			if (mirrorRafId) {
+				cancelAnimationFrame(mirrorRafId);
+				mirrorRafId = 0;
+			}
 		};
 	});
 

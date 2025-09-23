@@ -1,6 +1,9 @@
 export type Theme = 'light' | 'dark' | 'system';
 
 export function getSystemTheme(): 'light' | 'dark' {
+	if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+		return 'light';
+	}
 	return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
@@ -50,8 +53,8 @@ export function applyTheme(theme: Theme): void {
 	});
 }
 
-export function initializeTheme(): Theme {
-	if (typeof window === 'undefined') return 'system';
+export function initializeTheme(): () => void {
+	if (typeof window === 'undefined') return () => {};
 
 	const storedTheme = getStoredTheme();
 	applyTheme(storedTheme);
@@ -67,5 +70,7 @@ export function initializeTheme(): Theme {
 
 	mediaQuery.addEventListener('change', handleChange);
 
-	return storedTheme;
+	return () => {
+		mediaQuery.removeEventListener('change', handleChange);
+	};
 }

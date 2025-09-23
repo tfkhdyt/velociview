@@ -80,6 +80,18 @@ export function getOverlayFieldLabel(field: OverlayField): string {
 	}
 }
 
+// Helper: ensure first font family is quoted if it contains spaces
+export function quoteFirstFamilyIfNeeded(families: string): string {
+	const parts = families.split(',');
+	if (parts.length === 0) return families;
+	const firstRaw = parts[0]!.trim();
+	const alreadyQuoted = firstRaw.startsWith('"') || firstRaw.startsWith("'");
+	const needsQuote = /\s/.test(firstRaw) && !alreadyQuoted;
+	const first = needsQuote ? `"${firstRaw}"` : firstRaw;
+	const rest = parts.slice(1).join(',');
+	return rest ? `${first},${rest}` : first;
+}
+
 function drawRoundedRect(
 	ctx: CanvasRenderingContext2D,
 	x: number,
@@ -151,16 +163,7 @@ export function renderOverlay(
 	values: StatValues,
 	opts: OverlayOptions
 ): RenderResult {
-	function quoteFirstFamilyIfNeeded(families: string): string {
-		const parts = families.split(',');
-		if (parts.length === 0) return families;
-		const firstRaw = parts[0]!.trim();
-		const alreadyQuoted = firstRaw.startsWith('"') || firstRaw.startsWith("'");
-		const needsQuote = /\s/.test(firstRaw) && !alreadyQuoted;
-		const first = needsQuote ? `"${firstRaw}"` : firstRaw;
-		const rest = parts.slice(1).join(',');
-		return rest ? `${first},${rest}` : first;
-	}
+	// keep function body clean by using the top-level helper below
 
 	const canvasFontFamily = quoteFirstFamilyIfNeeded(opts.fontFamily);
 	const baseFontSize = 32; // baseline at scale 1
@@ -206,6 +209,30 @@ export function renderOverlay(
 
 	const perItemHeight = labelFontSize + labelGap + valueFontSize;
 
+	// Helper to assign items into a grid by rows/columns with optional right-aligned last row
+	function buildAssignments(
+		itemCount: number,
+		cols: number,
+		textAlign: 'left' | 'center' | 'right'
+	): Array<Array<number | null>> {
+		const rowsLocal = Math.max(1, Math.ceil(itemCount / Math.max(1, cols)));
+		const result: Array<Array<number | null>> = [];
+		for (let r = 0; r < rowsLocal; r++) {
+			const rowBase = r * cols;
+			const remaining = Math.max(0, itemCount - rowBase);
+			const itemsInRow = Math.min(cols, remaining);
+			const rowAssign: Array<number | null> = new Array(cols).fill(null);
+			const isLastRow = r === rowsLocal - 1;
+			const startCol =
+				isLastRow && textAlign === 'right' && itemsInRow < cols ? cols - itemsInRow : 0;
+			for (let k = 0; k < itemsInRow; k++) {
+				rowAssign[startCol + k] = rowBase + k;
+			}
+			result.push(rowAssign);
+		}
+		return result;
+	}
+
 	// Determine layout mode
 	const layoutMode: 'list' | 'auto' | 'fixed' = opts.gridMode ?? 'list';
 	let colCount = 1;
@@ -241,21 +268,7 @@ export function renderOverlay(
 		const rows = Math.max(1, Math.ceil(n / columns));
 		const gapGrid = Math.max(0, Math.round(lineGap * (opts.gridGapScale ?? 1)));
 
-		// Build per-row assignments; for right alignment, place last row in rightmost columns
-		const assignments: Array<Array<number | null>> = [];
-		for (let r = 0; r < rows; r++) {
-			const rowBase = r * columns;
-			const remaining = Math.max(0, n - rowBase);
-			const itemsInRow = Math.min(columns, remaining);
-			const rowAssign: Array<number | null> = new Array(columns).fill(null);
-			const isLastRow = r === rows - 1;
-			const startCol =
-				isLastRow && opts.textAlign === 'right' && itemsInRow < columns ? columns - itemsInRow : 0;
-			for (let k = 0; k < itemsInRow; k++) {
-				rowAssign[startCol + k] = rowBase + k;
-			}
-			assignments.push(rowAssign);
-		}
+		const assignments: Array<Array<number | null>> = buildAssignments(n, columns, opts.textAlign);
 
 		// Compute column widths based on assignments
 		const colWidths: number[] = new Array(columns).fill(0);
@@ -312,13 +325,13 @@ export function renderOverlay(
 		for (const it of items) {
 			// label
 			ctx.globalAlpha = 0.85;
-			ctx.font = `${labelFontWeight} ${labelFontSize}px ${opts.fontFamily}`;
+			ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
 			ctx.fillText(it.label, textX, cursorY);
 			cursorY += labelFontSize + labelGap;
 
 			// value
 			ctx.globalAlpha = 1;
-			ctx.font = `${valueFontWeight} ${valueFontSize}px ${opts.fontFamily}`;
+			ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
 			ctx.fillText(it.value, textX, cursorY);
 			cursorY += valueFontSize + lineGap;
 		}
@@ -330,20 +343,7 @@ export function renderOverlay(
 		const gapGrid = Math.max(0, Math.round(lineGap * (opts.gridGapScale ?? 1)));
 
 		// Rebuild assignments (must mirror sizing logic). For right alignment, place last row right.
-		const assignments: Array<Array<number | null>> = [];
-		for (let r = 0; r < rows; r++) {
-			const rowBase = r * columns;
-			const remaining = Math.max(0, n - rowBase);
-			const itemsInRow = Math.min(columns, remaining);
-			const rowAssign: Array<number | null> = new Array(columns).fill(null);
-			const isLastRow = r === rows - 1;
-			const startCol =
-				isLastRow && opts.textAlign === 'right' && itemsInRow < columns ? columns - itemsInRow : 0;
-			for (let k = 0; k < itemsInRow; k++) {
-				rowAssign[startCol + k] = rowBase + k;
-			}
-			assignments.push(rowAssign);
-		}
+		const assignments: Array<Array<number | null>> = buildAssignments(n, columns, opts.textAlign);
 
 		// Compute per-column widths and offsets
 		const colWidths: number[] = new Array(columns).fill(0);
@@ -430,12 +430,12 @@ export function renderOverlay(
 
 				// label
 				ctx.globalAlpha = 0.85;
-				ctx.font = `${labelFontWeight} ${labelFontSize}px ${opts.fontFamily}`;
+				ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
 				ctx.fillText(it.label, textX, rowTop);
 
 				// value
 				ctx.globalAlpha = 1;
-				ctx.font = `${valueFontWeight} ${valueFontSize}px ${opts.fontFamily}`;
+				ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
 				ctx.fillText(it.value, textX, rowTop + labelFontSize + labelGap);
 			}
 		}

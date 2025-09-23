@@ -9,7 +9,8 @@
 	let { children } = $props();
 
 	onMount(() => {
-		initializeTheme();
+		const cleanup = initializeTheme();
+		return cleanup;
 	});
 </script>
 
