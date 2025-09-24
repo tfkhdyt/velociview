@@ -1,10 +1,31 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { asset, resolve } from '$app/paths';
+	import { page } from '$app/stores';
+
+	let canonicalUrl: string = $state('');
+	let ogImageAbsoluteUrl: string = $state('');
+
+	$effect(() => {
+		const origin: string = $page.url.origin;
+		canonicalUrl = origin + $page.url.pathname;
+		ogImageAbsoluteUrl = origin + asset('/preview.jpg');
+	});
 </script>
 
 <svelte:head>
 	<title>Terms of Service — VelociView</title>
 	<meta name="description" content="VelociView Terms of Service." />
+	<link rel="canonical" href={canonicalUrl} />
+	<meta property="og:site_name" content="VelociView" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={canonicalUrl} />
+	<meta property="og:title" content="Terms of Service — VelociView" />
+	<meta property="og:description" content="VelociView Terms of Service." />
+	<meta property="og:image" content={ogImageAbsoluteUrl} />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="Terms of Service — VelociView" />
+	<meta name="twitter:description" content="VelociView Terms of Service." />
+	<meta name="twitter:image" content={ogImageAbsoluteUrl} />
 </svelte:head>
 
 <section class="mx-auto max-w-prose">

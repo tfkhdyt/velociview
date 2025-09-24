@@ -1,5 +1,15 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { asset, resolve } from '$app/paths';
+	import { page } from '$app/stores';
+
+	let canonicalUrl: string = $state('');
+	let ogImageAbsoluteUrl: string = $state('');
+
+	$effect(() => {
+		const origin: string = $page.url.origin;
+		canonicalUrl = origin + $page.url.pathname;
+		ogImageAbsoluteUrl = origin + asset('/preview.jpg');
+	});
 </script>
 
 <svelte:head>
@@ -8,6 +18,22 @@
 		name="description"
 		content="What VelociView is, how it works, and what you need to use it."
 	/>
+	<meta property="og:site_name" content="VelociView" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={canonicalUrl} />
+	<meta property="og:title" content="About — VelociView" />
+	<meta
+		property="og:description"
+		content="What VelociView is, how it works, and what you need to use it."
+	/>
+	<meta property="og:image" content={ogImageAbsoluteUrl} />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="About — VelociView" />
+	<meta
+		name="twitter:description"
+		content="What VelociView is, how it works, and what you need to use it."
+	/>
+	<meta name="twitter:image" content={ogImageAbsoluteUrl} />
 </svelte:head>
 
 <section class="mx-auto max-w-prose">

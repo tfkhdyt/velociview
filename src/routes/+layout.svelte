@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { asset, resolve } from '$app/paths';
+	import { page } from '$app/stores';
 	import darkLogoUrl from '$lib/assets/dark-logo.png';
 	import lightLogoUrl from '$lib/assets/light-logo.png';
 	import { initializeTheme } from '$lib/theme';
@@ -7,6 +8,21 @@
 	import '../app.css';
 
 	let { children } = $props();
+
+	const siteName: string = 'VelociView';
+	const defaultTitle: string = 'VelociView';
+	const defaultDescription: string =
+		'VelociView — customizable Strava‑style activity stats generator. Create clean overlays from your photo + TCX.';
+
+	let canonicalUrl: string = $state('');
+	let ogImageAbsoluteUrl: string = $state('');
+
+	$effect(() => {
+		const origin: string = $page.url.origin;
+		canonicalUrl = origin + $page.url.pathname;
+		// Make OG image absolute for social scrapers
+		ogImageAbsoluteUrl = origin + asset('/preview.jpg');
+	});
 
 	onMount(() => {
 		const cleanup = initializeTheme();
@@ -23,11 +39,45 @@
 		href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
 		rel="stylesheet"
 	/>
-	<title>VelociView</title>
-	<meta
-		name="description"
-		content="VelociView — customizable Strava‑style activity stats generator. Create clean overlays from your photo + TCX."
-	/>
+	<title>{defaultTitle}</title>
+	<meta name="description" content={defaultDescription} />
+	<link rel="canonical" href={canonicalUrl} />
+
+	<!-- Open Graph -->
+	<meta property="og:site_name" content={siteName} />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={canonicalUrl} />
+	<meta property="og:title" content={defaultTitle} />
+	<meta property="og:description" content={defaultDescription} />
+	<meta property="og:image" content={ogImageAbsoluteUrl} />
+
+	<!-- Twitter -->
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={defaultTitle} />
+	<meta name="twitter:description" content={defaultDescription} />
+	<meta name="twitter:image" content={ogImageAbsoluteUrl} />
+
+	<!-- Theme color for light/dark -->
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0b" />
+
+	<!-- JSON-LD -->
+	<script type="application/ld+json">
+		{JSON.stringify({
+			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			'@id': `${canonicalUrl}#website`,
+			url: $page.url.origin + '/',
+			name: siteName,
+			inLanguage: 'en',
+			publisher: {
+				'@type': 'Organization',
+				name: siteName,
+				url: $page.url.origin + '/',
+				sameAs: ['https://github.com/tfkhdyt/velociview']
+			}
+		})}
+	</script>
 </svelte:head>
 
 <div class="flex min-h-dvh flex-col text-foreground">
