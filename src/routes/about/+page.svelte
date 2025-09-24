@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { asset, resolve } from '$app/paths';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
-	let canonicalUrl: string = $state('');
-	let ogImageAbsoluteUrl: string = $state('');
-
-	$effect(() => {
-		const origin: string = $page.url.origin;
-		canonicalUrl = origin + $page.url.pathname;
-		ogImageAbsoluteUrl = origin + asset('/preview.jpg');
+	const origin = $derived(page.url.origin);
+	const canonicalUrl: string = $derived.by(() => {
+		return origin + page.url.pathname;
+	});
+	const ogImageAbsoluteUrl: string = $derived.by(() => {
+		return origin + asset('/preview.jpg');
 	});
 </script>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { asset, resolve } from '$app/paths';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import darkLogoUrl from '$lib/assets/dark-logo.png';
 	import lightLogoUrl from '$lib/assets/light-logo.png';
 	import { initializeTheme } from '$lib/theme';
@@ -13,15 +13,31 @@
 	const defaultTitle: string = 'VelociView';
 	const defaultDescription: string =
 		'VelociView — customizable Strava‑style activity stats generator. Create clean overlays from your photo + TCX.';
+	const origin = $derived(page.url.origin);
+	const canonicalUrl: string = $derived.by(() => {
+		return origin + page.url.pathname;
+	});
+	const ogImageAbsoluteUrl: string = $derived.by(() => {
+		return origin + asset('/preview.jpg');
+	});
 
-	let canonicalUrl: string = $state('');
-	let ogImageAbsoluteUrl: string = $state('');
+	const websiteJsonLd: string = $derived.by(() => {
+		const data = {
+			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			'@id': `${canonicalUrl}#website`,
+			url: origin + '/',
+			name: siteName,
+			inLanguage: 'en',
+			publisher: {
+				'@type': 'Organization',
+				name: siteName,
+				url: origin + '/',
+				sameAs: ['https://github.com/tfkhdyt/velociview']
+			}
+		};
 
-	$effect(() => {
-		const origin: string = $page.url.origin;
-		canonicalUrl = origin + $page.url.pathname;
-		// Make OG image absolute for social scrapers
-		ogImageAbsoluteUrl = origin + asset('/preview.jpg');
+		return JSON.stringify(data);
 	});
 
 	onMount(() => {
@@ -62,22 +78,8 @@
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0b" />
 
 	<!-- JSON-LD -->
-	<script type="application/ld+json">
-		{JSON.stringify({
-			'@context': 'https://schema.org',
-			'@type': 'WebSite',
-			'@id': `${canonicalUrl}#website`,
-			url: $page.url.origin + '/',
-			name: siteName,
-			inLanguage: 'en',
-			publisher: {
-				'@type': 'Organization',
-				name: siteName,
-				url: $page.url.origin + '/',
-				sameAs: ['https://github.com/tfkhdyt/velociview']
-			}
-		})}
-	</script>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	{@html `<script type="application/ld+json">${websiteJsonLd}<` + `/script>`}
 </svelte:head>
 
 <div class="flex min-h-dvh flex-col text-foreground">
