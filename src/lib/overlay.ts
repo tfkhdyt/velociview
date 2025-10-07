@@ -6,7 +6,11 @@ export type OverlayField =
 	| 'avgPace'
 	| 'maxPace'
 	| 'ascent'
-	| 'descent';
+	| 'descent'
+	| 'maxElevation'
+	| 'minElevation'
+	| 'avgElevation'
+	| 'routeMap';
 
 export const OVERLAY_FIELD_ORDER: readonly OverlayField[] = [
 	'distance',
@@ -16,7 +20,11 @@ export const OVERLAY_FIELD_ORDER: readonly OverlayField[] = [
 	'avgPace',
 	'maxPace',
 	'ascent',
-	'descent'
+	'descent',
+	'maxElevation',
+	'minElevation',
+	'avgElevation',
+	'routeMap'
 ] as const;
 
 export interface OverlayOptions {
@@ -48,6 +56,14 @@ export interface StatValues {
 	maxPace?: string;
 	ascent: string;
 	descent: string;
+	maxElevation?: string;
+	minElevation?: string;
+	avgElevation?: string;
+	// GPS route data
+	routePoints?: Array<{ lat: number; lon: number }>;
+	// Track metadata
+	trackName?: string;
+	trackDescription?: string;
 }
 
 export interface RenderResult {
@@ -74,9 +90,17 @@ export function getOverlayFieldLabel(field: OverlayField): string {
 		case 'maxPace':
 			return 'Max Pace';
 		case 'ascent':
-			return 'Ascent';
+			return 'Uphill';
 		case 'descent':
-			return 'Descent';
+			return 'Downhill';
+		case 'maxElevation':
+			return 'Max Elevation';
+		case 'minElevation':
+			return 'Min Elevation';
+		case 'avgElevation':
+			return 'Average Elevation';
+		case 'routeMap':
+			return 'Route Map';
 	}
 }
 
@@ -108,6 +132,84 @@ function drawRoundedRect(
 	ctx.arcTo(x, y + h, x, y, r);
 	ctx.arcTo(x, y, x + w, y, r);
 	ctx.closePath();
+}
+
+function drawSmallRouteMap(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	routePoints: Array<{ lat: number; lon: number }>,
+	color: string
+): void {
+	if (!routePoints || routePoints.length < 2) return;
+
+	// Find bounding box
+	let minLat = routePoints[0].lat;
+	let maxLat = routePoints[0].lat;
+	let minLon = routePoints[0].lon;
+	let maxLon = routePoints[0].lon;
+
+	for (const p of routePoints) {
+		if (p.lat < minLat) minLat = p.lat;
+		if (p.lat > maxLat) maxLat = p.lat;
+		if (p.lon < minLon) minLon = p.lon;
+		if (p.lon > maxLon) maxLon = p.lon;
+	}
+
+	const latRange = maxLat - minLat;
+	const lonRange = maxLon - minLon;
+	const range = Math.max(latRange, lonRange, 0.0001);
+
+	// Add padding
+	const padding = 0.1; // 10% padding
+	const paddedRange = range * (1 + padding * 2);
+
+	// Convert lat/lon to canvas coordinates
+	const toCanvasCoords = (lat: number, lon: number): { x: number; y: number } => {
+		const normalizedX = (lon - minLon + range * padding) / paddedRange;
+		const normalizedY = (lat - minLat + range * padding) / paddedRange;
+		return {
+			x: x + normalizedX * width,
+			y: y + height - normalizedY * height // Flip Y
+		};
+	};
+
+	ctx.save();
+	ctx.beginPath();
+	const firstPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	ctx.moveTo(firstPoint.x, firstPoint.y);
+
+	for (let i = 1; i < routePoints.length; i++) {
+		const point = toCanvasCoords(routePoints[i].lat, routePoints[i].lon);
+		ctx.lineTo(point.x, point.y);
+	}
+
+	ctx.strokeStyle = color;
+	ctx.lineWidth = Math.max(1, width * 0.015);
+	ctx.lineCap = 'round';
+	ctx.lineJoin = 'round';
+	ctx.stroke();
+
+	// Draw start point (green circle)
+	const startPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	ctx.beginPath();
+	ctx.arc(startPoint.x, startPoint.y, Math.max(2, width * 0.025), 0, Math.PI * 2);
+	ctx.fillStyle = '#00FF00';
+	ctx.fill();
+
+	// Draw end point (red circle)
+	const endPoint = toCanvasCoords(
+		routePoints[routePoints.length - 1].lat,
+		routePoints[routePoints.length - 1].lon
+	);
+	ctx.beginPath();
+	ctx.arc(endPoint.x, endPoint.y, Math.max(2, width * 0.025), 0, Math.PI * 2);
+	ctx.fillStyle = '#FF0000';
+	ctx.fill();
+
+	ctx.restore();
 }
 
 interface OverlayItem {
@@ -149,6 +251,27 @@ function layoutItems(values: StatValues, fields: OverlayField[]): OverlayItem[] 
 			case 'maxPace':
 				if (values.maxPace !== undefined) {
 					items.push({ label: getOverlayFieldLabel(field), value: values.maxPace });
+				}
+				break;
+			case 'maxElevation':
+				if (values.maxElevation !== undefined) {
+					items.push({ label: getOverlayFieldLabel(field), value: values.maxElevation });
+				}
+				break;
+			case 'minElevation':
+				if (values.minElevation !== undefined) {
+					items.push({ label: getOverlayFieldLabel(field), value: values.minElevation });
+				}
+				break;
+			case 'avgElevation':
+				if (values.avgElevation !== undefined) {
+					items.push({ label: getOverlayFieldLabel(field), value: values.avgElevation });
+				}
+				break;
+			case 'routeMap':
+				if (values.routePoints && values.routePoints.length > 0) {
+					// Special marker for route visualization
+					items.push({ label: getOverlayFieldLabel(field), value: '__ROUTE_MAP__' });
 				}
 				break;
 		}
@@ -199,12 +322,18 @@ export function renderOverlay(
 	const items = layoutItems(values, opts.selectedFields);
 	// Measure each item's max text width (between label and value)
 	const itemWidths: number[] = [];
+	const routeMapSize = valueFontSize * 4; // Route map will be 4x font size
 	for (const it of items) {
-		ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
-		const wLabel = ctx.measureText(it.label).width;
-		ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
-		const wValue = ctx.measureText(it.value).width;
-		itemWidths.push(Math.max(wLabel, wValue));
+		if (it.value === '__ROUTE_MAP__') {
+			// Fixed size for route map visualization
+			itemWidths.push(routeMapSize);
+		} else {
+			ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+			const wLabel = ctx.measureText(it.label).width;
+			ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+			const wValue = ctx.measureText(it.value).width;
+			itemWidths.push(Math.max(wLabel, wValue));
+		}
 	}
 
 	const perItemHeight = labelFontSize + labelGap + valueFontSize;
@@ -254,10 +383,11 @@ export function renderOverlay(
 		// Vertical list
 		const maxWidth = itemWidths.length ? Math.max(...itemWidths) : 0;
 		const contentHeight = items.length
-			? items.reduce(
-					(acc, _it, idx) => acc + perItemHeight + (idx < items.length - 1 ? lineGap : 0),
-					0
-				)
+			? items.reduce((acc, it, idx) => {
+					const itemHeight =
+						it.value === '__ROUTE_MAP__' ? labelFontSize + labelGap + routeMapSize : perItemHeight;
+					return acc + itemHeight + (idx < items.length - 1 ? lineGap : 0);
+				}, 0)
 			: 0;
 		boxWidth = Math.ceil(maxWidth) + padding * 2;
 		boxHeight = Math.ceil(contentHeight) + padding * 2;
@@ -281,10 +411,25 @@ export function renderOverlay(
 			}
 		}
 
+		// Compute per-row heights (accounting for route maps which are taller)
+		const rowHeights: number[] = new Array(rows).fill(perItemHeight);
+		for (let r = 0; r < rows; r++) {
+			for (let c = 0; c < columns; c++) {
+				const idx = assignments[r]![c];
+				if (idx !== null && idx !== undefined) {
+					const it = items[idx];
+					if (it.value === '__ROUTE_MAP__') {
+						const routeMapItemHeight = labelFontSize + labelGap + routeMapSize;
+						rowHeights[r] = Math.max(rowHeights[r], routeMapItemHeight);
+					}
+				}
+			}
+		}
+
 		const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
 		const totalColGaps = (columns - 1) * gapGrid;
 		boxWidth = padding * 2 + totalColsWidth + totalColGaps;
-		const totalRowsHeight = rows * perItemHeight;
+		const totalRowsHeight = rowHeights.reduce((acc, h) => acc + h, 0);
 		const totalRowGaps = (rows - 1) * gapGrid;
 		boxHeight = padding * 2 + totalRowsHeight + totalRowGaps;
 	}
@@ -329,11 +474,33 @@ export function renderOverlay(
 			ctx.fillText(it.label, textX, cursorY);
 			cursorY += labelFontSize + labelGap;
 
-			// value
+			// value or route map
 			ctx.globalAlpha = 1;
-			ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
-			ctx.fillText(it.value, textX, cursorY);
-			cursorY += valueFontSize + lineGap;
+			if (it.value === '__ROUTE_MAP__' && values.routePoints) {
+				// Draw route map
+				const mapWidth = routeMapSize;
+				const mapHeight = routeMapSize;
+				let mapX = textX;
+				if (opts.textAlign === 'center') {
+					mapX = textX - mapWidth / 2;
+				} else if (opts.textAlign === 'right') {
+					mapX = textX - mapWidth;
+				}
+				drawSmallRouteMap(
+					ctx,
+					mapX,
+					cursorY,
+					mapWidth,
+					mapHeight,
+					values.routePoints,
+					opts.primaryColor
+				);
+				cursorY += mapHeight + lineGap;
+			} else {
+				ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+				ctx.fillText(it.value, textX, cursorY);
+				cursorY += valueFontSize + lineGap;
+			}
 		}
 	} else {
 		// Grid render
@@ -358,6 +525,27 @@ export function renderOverlay(
 		const colOffsets: number[] = new Array(columns).fill(0);
 		for (let c = 1; c < columns; c++) {
 			colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGrid;
+		}
+
+		// Compute per-row heights (accounting for route maps which are taller)
+		const rowHeights: number[] = new Array(rows).fill(perItemHeight);
+		for (let r = 0; r < rows; r++) {
+			for (let c = 0; c < columns; c++) {
+				const idx = assignments[r]![c];
+				if (idx !== null && idx !== undefined) {
+					const it = items[idx];
+					if (it.value === '__ROUTE_MAP__') {
+						const routeMapItemHeight = labelFontSize + labelGap + routeMapSize;
+						rowHeights[r] = Math.max(rowHeights[r], routeMapItemHeight);
+					}
+				}
+			}
+		}
+
+		// Compute per-row Y offsets based on accumulated heights
+		const rowYOffsets: number[] = new Array(rows).fill(0);
+		for (let r = 1; r < rows; r++) {
+			rowYOffsets[r] = rowYOffsets[r - 1] + rowHeights[r - 1] + gapGrid;
 		}
 
 		// Compute per-row start offset to align row content within total grid width
@@ -406,7 +594,7 @@ export function renderOverlay(
 		}
 
 		for (let r = 0; r < rows; r++) {
-			const rowTop = y + padding + r * (perItemHeight + gapGrid);
+			const rowTop = y + padding + rowYOffsets[r];
 			for (let c = 0; c < columns; c++) {
 				const idx = assignments[r]![c];
 				if (idx === null || idx === undefined) continue;
@@ -433,10 +621,31 @@ export function renderOverlay(
 				ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
 				ctx.fillText(it.label, textX, rowTop);
 
-				// value
+				// value or route map
 				ctx.globalAlpha = 1;
-				ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
-				ctx.fillText(it.value, textX, rowTop + labelFontSize + labelGap);
+				if (it.value === '__ROUTE_MAP__' && values.routePoints) {
+					// Draw route map
+					const mapWidth = routeMapSize;
+					const mapHeight = routeMapSize;
+					let mapX = textX;
+					if (opts.textAlign === 'center') {
+						mapX = textX - mapWidth / 2;
+					} else if (opts.textAlign === 'right') {
+						mapX = textX - mapWidth;
+					}
+					drawSmallRouteMap(
+						ctx,
+						mapX,
+						rowTop + labelFontSize + labelGap,
+						mapWidth,
+						mapHeight,
+						values.routePoints,
+						opts.primaryColor
+					);
+				} else {
+					ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+					ctx.fillText(it.value, textX, rowTop + labelFontSize + labelGap);
+				}
 			}
 		}
 	}

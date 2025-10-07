@@ -4,7 +4,6 @@
 	import FloatingPreviewButton from '$lib/components/FloatingPreviewButton.svelte';
 	import PreviewCard from '$lib/components/PreviewCard.svelte';
 	import {
-		OVERLAY_FIELD_ORDER,
 		renderOverlay,
 		type OverlayField,
 		type OverlayOptions,
@@ -17,12 +16,12 @@
 		ensureWatermarkReady,
 		getMimeAndExt,
 		GOOGLE_FONTS,
+		isActivityFile,
 		isImageFile,
-		isTcxFile,
 		presetToPosition,
 		type PositionPreset
 	} from '$lib/page-utils';
-	import { parseTcxToOverlayValues } from '$lib/tcx';
+	import { parseActivityFile } from '$lib/tcx';
 	import { onMount, tick } from 'svelte';
 
 	// removed unused file state to satisfy linter
@@ -40,11 +39,13 @@
 	let ctx: CanvasRenderingContext2D | null = null;
 
 	let backdropOpacity = $state(0);
-	let selectedFields: OverlayField[] = $state(
-		OVERLAY_FIELD_ORDER.filter(
-			(f) => f !== 'maxSpeed' && f !== 'ascent' && f !== 'descent' && f !== 'maxPace'
-		)
-	);
+	let selectedFields: OverlayField[] = $state([
+		'distance',
+		'movingTime',
+		'avgSpeed',
+		'avgPace',
+		'avgElevation'
+	]);
 	let scale = $state(1);
 	let posX = $state(0.05); // normalized 0..1
 	let posY = $state(0.95); // normalized 0..1 (matches "bottom left" preset)
@@ -291,7 +292,8 @@
 		tcxLoading = true;
 		try {
 			const text = await file.text();
-			values = await parseTcxToOverlayValues(text);
+			const ext = file.name.split('.').pop() || 'tcx';
+			values = await parseActivityFile(text, ext);
 			// Re-render with the new values
 			requestRender();
 		} finally {
@@ -307,9 +309,9 @@
 	async function processDroppedFiles(files: FileList | File[]): Promise<void> {
 		const arr: File[] = Array.from(files as unknown as ArrayLike<File>);
 		const image = arr.find((f) => isImageFile(f));
-		const tcx = arr.find((f) => isTcxFile(f));
+		const activity = arr.find((f) => isActivityFile(f));
 		if (image) await loadImageFile(image);
-		if (tcx) await loadTcxFile(tcx);
+		if (activity) await loadTcxFile(activity);
 	}
 
 	// Document-level (page-wide) dropzone handlers
@@ -602,9 +604,22 @@
 		</h2>
 		<p class="mt-1 text-sm text-muted">
 			VelociView turns your workouts into clean, shareable overlays. Upload a photo and a
-			<code>.tcx</code> file, pick the stats you want, then fine‑tune layout and appearance to match
-			your style.
+			<code>.tcx</code> or <code>.gpx</code> file, pick the stats you want, then fine‑tune layout and
+			appearance to match your style.
 		</p>
+
+		{#if values?.trackName || values?.trackDescription}
+			<div
+				class="mt-4 rounded-lg border border-border bg-white/40 p-4 backdrop-blur [[data-theme=dark]_&]:bg-zinc-900/40"
+			>
+				{#if values.trackName}
+					<h3 class="font-semibold text-foreground">{values.trackName}</h3>
+				{/if}
+				{#if values.trackDescription}
+					<p class="mt-1 text-sm text-muted">{values.trackDescription}</p>
+				{/if}
+			</div>
+		{/if}
 	</div>
 	<div class="grid items-start gap-6 lg:grid-cols-2">
 		<ControlsCard

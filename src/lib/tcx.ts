@@ -1,5 +1,6 @@
 import { SportsLib } from '@sports-alliance/sports-lib';
 import type { EventInterface } from '@sports-alliance/sports-lib/lib/events/event.interface';
+import { parseGPX } from '@we-gold/gpxjs';
 import type { StatValues } from './overlay';
 
 function getStat(holder: EventInterface, type: string): string | number | null {
@@ -43,11 +44,7 @@ function formatDescent(v: string | number | null): string {
 	return hasLetters ? `-${s}` : `-${s} m`;
 }
 
-export async function parseTcxToOverlayValues(xmlString: string): Promise<StatValues> {
-	const parser = new DOMParser();
-	const xml = parser.parseFromString(xmlString, 'application/xml');
-	const event = await SportsLib.importFromTCX(xml);
-
+function extractStatsFromEvent(event: EventInterface): StatValues {
 	const distanceDisplay = (
 		event.getDistance() as unknown as {
 			getDisplayValue?: () => string | number;
@@ -62,13 +59,26 @@ export async function parseTcxToOverlayValues(xmlString: string): Promise<StatVa
 					? String(distanceDisplay)
 					: `${distanceDisplay} km`;
 
-	const durationVal = (event.getDuration() as unknown as { getValue?: () => number })?.getValue?.();
+	// Try to get moving time first, fallback to total duration
+	const movingTimeStat = getStat(event, 'Moving time');
+	const movingTimeVal = movingTimeStat
+		? (movingTimeStat as unknown as { getValue?: () => number })?.getValue?.()
+		: null;
+
+	// If no moving time stat, use total duration
+	const durationVal =
+		movingTimeVal ?? (event.getDuration() as unknown as { getValue?: () => number })?.getValue?.();
+
 	const movingTimeRaw = String(
-		(
-			event.getDuration() as unknown as {
-				getDisplayValue?: () => string | number;
-			}
-		)?.getDisplayValue?.() ?? ''
+		movingTimeStat
+			? (
+					movingTimeStat as unknown as { getDisplayValue?: () => string | number }
+				)?.getDisplayValue?.()
+			: ((
+					event.getDuration() as unknown as {
+						getDisplayValue?: () => string | number;
+					}
+				)?.getDisplayValue?.() ?? '')
 	);
 	const movingTime =
 		typeof durationVal === 'number' && isFinite(durationVal)
@@ -104,6 +114,122 @@ export async function parseTcxToOverlayValues(xmlString: string): Promise<StatVa
 		ascent,
 		descent
 	};
+}
+
+export async function parseTcxToOverlayValues(xmlString: string): Promise<StatValues> {
+	const parser = new DOMParser();
+	const xml = parser.parseFromString(xmlString, 'application/xml');
+	const event = await SportsLib.importFromTCX(xml);
+	return extractStatsFromEvent(event);
+}
+
+export async function parseGpxToOverlayValues(xmlString: string): Promise<StatValues> {
+	const [parsedGPX, error] = parseGPX(xmlString);
+
+	if (error || !parsedGPX) {
+		throw new Error('Failed to parse GPX file: ' + (error?.message || 'Unknown error'));
+	}
+
+	// Get the first track (most GPX files have one track)
+	const track = parsedGPX.tracks[0];
+	if (!track) {
+		throw new Error('No tracks found in GPX file');
+	}
+
+	// Distance (convert from meters to km)
+	const distanceKm = track.distance?.total ? track.distance.total / 1000 : 0;
+	const distance = `${formatNumber(distanceKm, 2)} km`;
+
+	// Moving time (in seconds)
+	const movingTimeSec = track.duration?.movingDuration || 0;
+	const movingTime = formatDuration(movingTimeSec);
+
+	// Calculate speeds
+	const avgSpeedMps = movingTimeSec > 0 ? (track.distance?.total || 0) / movingTimeSec : 0;
+	const avgSpeedKmh = speedToKmh(avgSpeedMps);
+	const avgSpeed = `${formatNumber(avgSpeedKmh, 1)} km/h`;
+
+	// Max speed - find from points
+	let maxSpeedMps = 0;
+	const points = track.points || [];
+	for (let i = 1; i < points.length; i++) {
+		const p1 = points[i - 1];
+		const p2 = points[i];
+		if (p1?.time && p2?.time && p1.latitude && p1.longitude && p2.latitude && p2.longitude) {
+			const timeDiff = (new Date(p2.time).getTime() - new Date(p1.time).getTime()) / 1000;
+			if (timeDiff > 0) {
+				const dist = calculatePointDistance(p1.latitude, p1.longitude, p2.latitude, p2.longitude);
+				const speed = dist / timeDiff;
+				if (speed > maxSpeedMps) maxSpeedMps = speed;
+			}
+		}
+	}
+	const maxSpeedKmh = speedToKmh(maxSpeedMps);
+	const maxSpeed = `${formatNumber(maxSpeedKmh, 1)} km/h`;
+
+	// Pace
+	const avgPaceMinPerKm = paceMinPerKm(avgSpeedMps);
+	const avgPace = avgPaceMinPerKm > 0 ? formatPace(avgPaceMinPerKm) : undefined;
+
+	const maxPaceMinPerKm = maxSpeedMps > 0 ? paceMinPerKm(maxSpeedMps) : 0;
+	const maxPace = maxPaceMinPerKm > 0 ? formatPace(maxPaceMinPerKm) : undefined;
+
+	// Elevation
+	const ascent = track.elevation?.positive ? `${formatNumber(track.elevation.positive, 0)} m` : '';
+	const descentVal = track.elevation?.negative || 0;
+	const descent = descentVal > 0 ? `${formatNumber(descentVal, 0)} m` : '';
+
+	// Additional elevation metrics
+	const maxElevation = track.elevation?.maximum
+		? `${formatNumber(track.elevation.maximum, 0)} m`
+		: undefined;
+	const minElevation = track.elevation?.minimum
+		? `${formatNumber(track.elevation.minimum, 0)} m`
+		: undefined;
+	const avgElevation = track.elevation?.average
+		? `${formatNumber(track.elevation.average, 0)} m`
+		: undefined;
+
+	// Route points (GPS coordinates)
+	const routePoints = track.points
+		?.filter((p) => p.latitude !== undefined && p.longitude !== undefined)
+		.map((p) => ({
+			lat: p.latitude!,
+			lon: p.longitude!
+		}));
+
+	// Track metadata
+	const trackName = track.name || undefined;
+	const trackDescription = track.description || track.comment || undefined;
+
+	return {
+		distance,
+		movingTime,
+		avgSpeed,
+		maxSpeed,
+		avgPace,
+		maxPace,
+		ascent,
+		descent,
+		maxElevation,
+		minElevation,
+		avgElevation,
+		routePoints,
+		trackName,
+		trackDescription
+	};
+}
+
+export async function parseActivityFile(
+	xmlString: string,
+	fileExtension: string
+): Promise<StatValues> {
+	const ext = fileExtension.toLowerCase().replace(/^\./, '');
+	if (ext === 'gpx') {
+		return parseGpxToOverlayValues(xmlString);
+	} else {
+		return parseTcxToOverlayValues(xmlString);
+	}
 }
 
 export function formatDuration(totalSeconds: number): string {
@@ -148,4 +274,20 @@ export function formatPace(minPerKm: number): string {
 
 export function formatNumber(n: number, fractionDigits: number = 1): string {
 	return n.toFixed(fractionDigits);
+}
+
+// Calculate distance between two GPS coordinates using Haversine formula (returns meters)
+function calculatePointDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+	const R = 6371000; // Earth's radius in meters
+	const φ1 = (lat1 * Math.PI) / 180;
+	const φ2 = (lat2 * Math.PI) / 180;
+	const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+	const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+	const a =
+		Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+		Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+	return R * c;
 }

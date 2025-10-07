@@ -48,22 +48,22 @@
 	</div>
 	<div class="space-y-2">
 		<label class="form-label inline-flex items-center gap-1" for="tcx-input">
-			TCX
+			TCX / GPX
 			<span class="group relative ml-1">
 				<button
 					type="button"
 					class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] leading-none text-muted hover:bg-foreground/10 focus:outline-none"
 					aria-describedby="tcx-tooltip"
-					aria-label="What is a TCX?">?</button
+					aria-label="What is a TCX or GPX?">?</button
 				>
 				<span
 					id="tcx-tooltip"
 					role="tooltip"
 					class="pointer-events-none absolute top-full left-0 z-10 mt-1 w-72 rounded-md border border-border bg-white/95 p-2 text-xs text-foreground opacity-0 shadow-lg duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [[data-theme=dark]_&]:bg-zinc-900/95"
 				>
-					<strong>What is a TCX?</strong> A Training Center XML file with GPS and workout stats. Export
-					it from apps like Strava, Garmin Connect, Wahoo, or Polar (look for “Export TCX” on the activity
-					page).
+					<strong>What is a TCX or GPX?</strong> Activity files with GPS and workout stats. TCX (Training
+					Center XML) and GPX (GPS Exchange Format) can be exported from apps like Strava, Garmin Connect,
+					Wahoo, or Polar (look for "Export TCX" or "Export GPX" on the activity page).
 				</span>
 			</span>
 		</label>
@@ -71,7 +71,7 @@
 			<input
 				id="tcx-input"
 				type="file"
-				accept=".tcx"
+				accept=".tcx,.gpx"
 				onchange={(e) => onTcxChange((e.target as HTMLInputElement).files)}
 				disabled={tcxLoading}
 				class="form-control pr-10 disabled:cursor-not-allowed disabled:opacity-50"

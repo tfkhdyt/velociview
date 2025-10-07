@@ -82,6 +82,17 @@ export function isTcxFile(file: File): boolean {
 	);
 }
 
+export function isGpxFile(file: File): boolean {
+	const name = file.name.toLowerCase();
+	if (name.endsWith('.gpx')) return true;
+	const type = file.type;
+	return type === 'application/gpx+xml' || type === 'application/xml' || type === 'text/xml';
+}
+
+export function isActivityFile(file: File): boolean {
+	return isTcxFile(file) || isGpxFile(file);
+}
+
 export function isImageFile(file: File): boolean {
 	return file.type.startsWith('image/');
 }
@@ -338,5 +349,120 @@ export function drawWatermark(
 	ctx.shadowOffsetY = Math.round(fontSize * 0.08);
 	ctx.fillStyle = 'rgba(255,255,255,0.85)';
 	ctx.fillText(text, x, y);
+	ctx.restore();
+}
+
+export interface RouteOptions {
+	scale: number;
+	position: { x: number; y: number };
+	color: string;
+	lineWidth: number;
+}
+
+export function drawRouteOnCanvas(
+	ctx: CanvasRenderingContext2D,
+	imageWidth: number,
+	imageHeight: number,
+	routePoints: Array<{ lat: number; lon: number }>,
+	options: RouteOptions
+): void {
+	if (!routePoints || routePoints.length < 2) return;
+
+	const { scale: userScale, position, color, lineWidth } = options;
+
+	// Calculate bounds
+	const lats = routePoints.map((p) => p.lat);
+	const lons = routePoints.map((p) => p.lon);
+	const minLat = Math.min(...lats);
+	const maxLat = Math.max(...lats);
+	const minLon = Math.min(...lons);
+	const maxLon = Math.max(...lons);
+
+	const latRange = maxLat - minLat;
+	const lonRange = maxLon - minLon;
+
+	if (latRange === 0 || lonRange === 0) return;
+
+	// Add padding (10% margin)
+	const padding = 0.1;
+	const paddedLatRange = latRange * (1 + 2 * padding);
+	const paddedLonRange = lonRange * (1 + 2 * padding);
+
+	// Calculate base scale to fit route in image
+	const scaleX = imageWidth / paddedLonRange;
+	const scaleY = imageHeight / paddedLatRange;
+	const baseScale = Math.min(scaleX, scaleY);
+
+	// Apply user scale factor
+	const scale = baseScale * userScale;
+
+	// Calculate route dimensions
+	const routeWidth = lonRange * scale;
+	const routeHeight = latRange * scale;
+
+	// Apply custom position (normalized 0-1 coordinates)
+	// position.x/y = 0.5 means center, 0 means left/top, 1 means right/bottom
+	const offsetX = position.x * imageWidth - routeWidth / 2 - minLon * scale;
+	const offsetY = position.y * imageHeight + routeHeight / 2 + maxLat * scale; // Flip Y axis
+
+	// Convert lat/lon to canvas pixels
+	const toCanvasCoords = (lat: number, lon: number): { x: number; y: number } => ({
+		x: lon * scale + offsetX,
+		y: -lat * scale + offsetY // Flip Y axis (latitude increases upward)
+	});
+
+	ctx.save();
+
+	// Draw route path
+	ctx.beginPath();
+	const firstPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	ctx.moveTo(firstPoint.x, firstPoint.y);
+
+	for (let i = 1; i < routePoints.length; i++) {
+		const point = toCanvasCoords(routePoints[i].lat, routePoints[i].lon);
+		ctx.lineTo(point.x, point.y);
+	}
+
+	// Style the route line with custom color and width
+	ctx.strokeStyle = color;
+	ctx.lineWidth = Math.max(lineWidth, imageWidth * 0.001 * lineWidth);
+	ctx.lineCap = 'round';
+	ctx.lineJoin = 'round';
+
+	// Add shadow for better visibility
+	ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+	ctx.shadowBlur = Math.max(2, imageWidth * 0.002);
+	ctx.shadowOffsetX = 0;
+	ctx.shadowOffsetY = 0;
+
+	ctx.stroke();
+
+	// Draw start point (green circle)
+	const startPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	ctx.beginPath();
+	ctx.arc(startPoint.x, startPoint.y, Math.max(5, imageWidth * 0.004), 0, Math.PI * 2);
+	ctx.fillStyle = '#00FF00';
+	ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+	ctx.shadowBlur = Math.max(3, imageWidth * 0.003);
+	ctx.fill();
+	ctx.strokeStyle = '#FFFFFF';
+	ctx.lineWidth = Math.max(2, imageWidth * 0.0015);
+	ctx.stroke();
+
+	// Draw end point (red circle)
+	const endPoint = toCanvasCoords(
+		routePoints[routePoints.length - 1].lat,
+		routePoints[routePoints.length - 1].lon
+	);
+	ctx.beginPath();
+	ctx.arc(endPoint.x, endPoint.y, Math.max(5, imageWidth * 0.004), 0, Math.PI * 2);
+	ctx.fillStyle = '#FF0000';
+	ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+	ctx.shadowBlur = Math.max(3, imageWidth * 0.003);
+	ctx.fill();
+	ctx.strokeStyle = '#FFFFFF';
+	ctx.lineWidth = Math.max(2, imageWidth * 0.0015);
+	ctx.stroke();
+
 	ctx.restore();
 }
