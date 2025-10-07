@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { parseActivityFile } from '$lib/activity';
 	import ControlsCard from '$lib/components/ControlsCard.svelte';
 	import DropOverlay from '$lib/components/DropOverlay.svelte';
 	import FloatingPreviewButton from '$lib/components/FloatingPreviewButton.svelte';
@@ -21,7 +22,6 @@
 		presetToPosition,
 		type PositionPreset
 	} from '$lib/page-utils';
-	import { parseActivityFile } from '$lib/tcx';
 	import { onMount, tick } from 'svelte';
 
 	// removed unused file state to satisfy linter

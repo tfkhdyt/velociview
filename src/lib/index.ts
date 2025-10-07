@@ -1,1 +1,3 @@
-// place files you want to import through the `$lib` alias in this folder.
+export { parseActivityFile } from './activity';
+export { parseGpxToOverlayValues } from './gpx';
+export { parseTcxToOverlayValues } from './tcx';
