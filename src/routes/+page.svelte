@@ -285,7 +285,15 @@
 
 	async function handleImageChange(files: FileList | null): Promise<void> {
 		if (!files || files.length === 0) return;
-		await loadImageFile(files[0]);
+		const file = files[0];
+		// Validate file type (important for Android browsers that don't respect accept attribute)
+		if (!isImageFile(file)) {
+			alert('Please select a valid image file (JPEG, PNG, WebP, etc.).');
+			// Clear the file input to reset the state
+			if (imageInputEl) imageInputEl.value = '';
+			return;
+		}
+		await loadImageFile(file);
 	}
 
 	async function loadGpxFile(file: File): Promise<void> {
@@ -302,7 +310,15 @@
 
 	async function handleGpxChange(files: FileList | null): Promise<void> {
 		if (!files || files.length === 0) return;
-		await loadGpxFile(files[0]);
+		const file = files[0];
+		// Validate file type (important for Android browsers that don't respect accept attribute)
+		if (!isActivityFile(file)) {
+			alert('Please select a valid GPX file.');
+			// Clear the file input to reset the state
+			if (gpxInputEl) gpxInputEl.value = '';
+			return;
+		}
+		await loadGpxFile(file);
 	}
 
 	async function processDroppedFiles(files: FileList | File[]): Promise<void> {
