@@ -230,8 +230,8 @@ export function drawWatermark(
 		const aspect = aspectSource
 			? aspectSource.naturalWidth / Math.max(1, aspectSource.naturalHeight)
 			: 4;
-		// Use fixed watermark size for consistency across all devices and export sizes
-		const targetH = 20; // Fixed height for consistent watermark size
+		// Use relative watermark size based on image dimensions for consistency across resolutions
+		const targetH = Math.max(12, Math.round(imageHeight * 0.015)); // Scale with image height (~1.5%)
 		const targetW = Math.round(targetH * aspect);
 
 		type Corner = {
@@ -320,8 +320,8 @@ export function drawWatermark(
 
 	// Fallback to text watermark if logo isn't available
 	const text = 'VelociView';
-	// Use fixed font size for consistency across all devices and export sizes
-	const fontSize = 14; // Fixed font size for consistent watermark size
+	// Use relative font size based on image dimensions for consistency across resolutions
+	const fontSize = Math.max(10, Math.round(imageHeight * 0.01)); // Scale with image height (~1%)
 	const primaryFamily = uiFontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
 	// Measure text box for overlap determination
 	ctx.save();
