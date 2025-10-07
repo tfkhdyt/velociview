@@ -11,13 +11,13 @@
 
 	let {
 		imageLoading,
-		tcxLoading,
+		gpxLoading,
 		values,
 		imageBitmap,
 		imageInputEl = $bindable(),
-		tcxInputEl = $bindable(),
+		gpxInputEl = $bindable(),
 		onImageChange,
-		onTcxChange,
+		onGpxChange,
 		onResetClick,
 		// fields & position
 		selectedFields,
@@ -53,13 +53,13 @@
 		onShareClick
 	}: {
 		imageLoading: boolean;
-		tcxLoading: boolean;
+		gpxLoading: boolean;
 		values: StatValues | null;
 		imageBitmap: ImageBitmap | null;
 		imageInputEl: HTMLInputElement | null;
-		tcxInputEl: HTMLInputElement | null;
+		gpxInputEl: HTMLInputElement | null;
 		onImageChange: (files: FileList | null) => void | Promise<void>;
-		onTcxChange: (files: FileList | null) => void | Promise<void>;
+		onGpxChange: (files: FileList | null) => void | Promise<void>;
 		onResetClick: () => void;
 		selectedFields: OverlayField[];
 		onFieldsChange: (next: OverlayField[]) => void;
@@ -106,11 +106,11 @@
 	<h2 class="mb-4 text-base font-semibold tracking-tight">Upload</h2>
 	<UploadSection
 		{imageLoading}
-		{tcxLoading}
+		{gpxLoading}
 		{onImageChange}
-		{onTcxChange}
+		{onGpxChange}
 		bind:imageInputEl
-		bind:tcxInputEl
+		bind:gpxInputEl
 	/>
 
 	{#if values && imageBitmap}

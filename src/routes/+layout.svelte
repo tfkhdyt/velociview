@@ -12,7 +12,7 @@
 	const siteName: string = 'VelociView';
 	const defaultTitle: string = 'VelociView';
 	const defaultDescription: string =
-		'VelociView — customizable Strava‑style activity stats generator. Create clean overlays from your photo + TCX.';
+		'VelociView — customizable Strava‑style activity stats generator. Create clean overlays from your photo + GPX.';
 	const origin = $derived(page.url.origin);
 	const canonicalUrl: string = $derived.by(() => {
 		return origin + page.url.pathname;

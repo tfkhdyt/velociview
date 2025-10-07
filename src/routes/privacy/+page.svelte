@@ -29,7 +29,7 @@
 
 <section class="mx-auto max-w-prose">
 	<h2 class="mb-4 text-xl font-semibold tracking-tight">Privacy Policy</h2>
-	<p class="text-muted-foreground mb-3 text-sm">Last updated: 20 September 2025</p>
+	<p class="text-muted-foreground mb-3 text-sm">Last updated: 8 October 2025</p>
 
 	<h3 class="mb-2 text-base font-semibold tracking-tight">Overview</h3>
 	<p class="mb-3">
@@ -39,7 +39,7 @@
 
 	<h3 class="mb-2 text-base font-semibold tracking-tight">Data You Provide</h3>
 	<p class="mb-3">
-		When you upload a <code>.tcx</code> file, the data is parsed in your browser to compute stats and
+		When you upload a <code>.gpx</code> file, the data is parsed in your browser to compute stats and
 		generate an image overlay. The file contents and derived stats are not transmitted to a server by
 		this app.
 	</p>

@@ -73,14 +73,6 @@ export async function ensureFontLoaded(targetFamily: string): Promise<void> {
 	}
 }
 
-export function isTcxFile(file: File): boolean {
-	const name = file.name.toLowerCase();
-	if (name.endsWith('.tcx')) return true;
-	// Only check for TCX-specific MIME type if extension doesn't match
-	const type = file.type;
-	return type === 'application/vnd.garmin.tcx+xml';
-}
-
 export function isGpxFile(file: File): boolean {
 	const name = file.name.toLowerCase();
 	if (name.endsWith('.gpx')) return true;
@@ -91,9 +83,8 @@ export function isGpxFile(file: File): boolean {
 
 export function isActivityFile(file: File): boolean {
 	const name = file.name.toLowerCase();
-	const hasValidExtension = name.endsWith('.gpx') || name.endsWith('.tcx');
+	const hasValidExtension = name.endsWith('.gpx');
 	const hasValidMime =
-		file.type === 'application/vnd.garmin.tcx+xml' ||
 		file.type === 'application/gpx+xml' ||
 		file.type === 'application/xml' ||
 		file.type === 'text/xml';
@@ -327,7 +318,7 @@ export function drawWatermark(
 
 	// Fallback to text watermark if logo isn't available
 	const text = 'VelociView';
-	const fontSize = Math.max(12, Math.min(28, Math.round(imageWidth * 0.016)));
+	const fontSize = Math.max(12, Math.min(20, Math.round(imageWidth * 0.012)));
 	const primaryFamily = uiFontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
 	// Measure text box for overlap determination
 	ctx.save();

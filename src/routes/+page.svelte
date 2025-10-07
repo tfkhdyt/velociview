@@ -225,8 +225,8 @@
 
 	// Loading indicators for file processing
 	let imageLoading: boolean = $state(false);
-	// Loading indicator for TCX parsing
-	let tcxLoading: boolean = $state(false);
+	// Loading indicator for GPX parsing
+	let gpxLoading: boolean = $state(false);
 
 	// Page-wide dropzone state
 	let pageDragCounter = $state(0);
@@ -234,7 +234,7 @@
 
 	// File input references for reset functionality
 	let imageInputEl: HTMLInputElement | null = $state(null);
-	let tcxInputEl: HTMLInputElement | null = $state(null);
+	let gpxInputEl: HTMLInputElement | null = $state(null);
 
 	function resetAll(): void {
 		// Clear file state
@@ -257,7 +257,7 @@
 
 		// Clear file input values to ensure onchange fires for new uploads
 		if (imageInputEl) imageInputEl.value = '';
-		if (tcxInputEl) tcxInputEl.value = '';
+		if (gpxInputEl) gpxInputEl.value = '';
 	}
 
 	async function loadImageFile(file: File): Promise<void> {
@@ -288,22 +288,21 @@
 		await loadImageFile(files[0]);
 	}
 
-	async function loadTcxFile(file: File): Promise<void> {
-		tcxLoading = true;
+	async function loadGpxFile(file: File): Promise<void> {
+		gpxLoading = true;
 		try {
 			const text = await file.text();
-			const ext = file.name.split('.').pop() || 'tcx';
-			values = await parseActivityFile(text, ext);
+			values = await parseActivityFile(text);
 			// Re-render with the new values
 			requestRender();
 		} finally {
-			tcxLoading = false;
+			gpxLoading = false;
 		}
 	}
 
-	async function handleTcxChange(files: FileList | null): Promise<void> {
+	async function handleGpxChange(files: FileList | null): Promise<void> {
 		if (!files || files.length === 0) return;
-		await loadTcxFile(files[0]);
+		await loadGpxFile(files[0]);
 	}
 
 	async function processDroppedFiles(files: FileList | File[]): Promise<void> {
@@ -311,7 +310,7 @@
 		const image = arr.find((f) => isImageFile(f));
 		const activity = arr.find((f) => isActivityFile(f));
 		if (image) await loadImageFile(image);
-		if (activity) await loadTcxFile(activity);
+		if (activity) await loadGpxFile(activity);
 	}
 
 	// Document-level (page-wide) dropzone handlers
@@ -604,16 +603,9 @@
 		</h2>
 		<p class="mt-1 text-sm text-muted">
 			VelociView turns your workouts into clean, shareable overlays. Upload a photo and a
-			<code>.gpx</code> file (recommended) or <code>.tcx</code> file, pick the stats you want, then fine‑tune
-			layout and appearance to match your style.
+			<code>.gpx</code> file, pick the stats you want, then fine‑tune layout and appearance to match
+			your style.
 		</p>
-		<div
-			class="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2 text-xs text-blue-900 [[data-theme=dark]_&]:border-blue-800/50 [[data-theme=dark]_&]:bg-blue-950/30 [[data-theme=dark]_&]:text-blue-200"
-		>
-			<strong>💡 Tip:</strong> We recommend using <strong>GPX files</strong> for best results. GPX provides
-			more complete data including elevation profiles, better GPS accuracy, and wider compatibility across
-			fitness platforms.
-		</div>
 
 		{#if values?.trackName || values?.trackDescription}
 			<div
@@ -631,13 +623,13 @@
 	<div class="grid items-start gap-6 lg:grid-cols-2">
 		<ControlsCard
 			{imageLoading}
-			{tcxLoading}
+			{gpxLoading}
 			{values}
 			{imageBitmap}
 			bind:imageInputEl
-			bind:tcxInputEl
+			bind:gpxInputEl
 			onImageChange={handleImageChange}
-			onTcxChange={handleTcxChange}
+			onGpxChange={handleGpxChange}
 			onResetClick={resetAll}
 			{selectedFields}
 			onFieldsChange={(next) => {
@@ -699,7 +691,7 @@
 		<PreviewCard
 			bind:this={previewRef}
 			hasImage={Boolean(imageUrl)}
-			loading={imageLoading || tcxLoading}
+			loading={imageLoading || gpxLoading}
 			{imageBitmap}
 			{values}
 			{backdropOpacity}

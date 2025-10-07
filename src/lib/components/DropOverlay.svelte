@@ -12,7 +12,7 @@
 			<div
 				class="pointer-events-none rounded-xl border border-dashed border-accent bg-white/40 px-6 py-3 text-sm font-medium text-accent shadow-lg backdrop-blur-md [[data-theme=dark]_&]:bg-zinc-900/40"
 			>
-				Drop image or .tcx anywhere to load
+				Drop image or .gpx anywhere to load
 			</div>
 		</div>
 	</div>

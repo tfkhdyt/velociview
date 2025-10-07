@@ -11,7 +11,7 @@
 		hasImage,
 		imageBitmap,
 		values,
-		// show loading overlay when image or tcx is processing
+		// show loading overlay when image or gpx is processing
 		loading = false,
 		backdropOpacity,
 		selectedFields,
@@ -244,7 +244,7 @@
 </script>
 
 <div
-	class="rounded-2xl border border-border bg-white/30 p-4 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30"
+	class="z-0 rounded-2xl border border-border bg-white/30 p-4 shadow-lg backdrop-blur-md duration-200 [[data-theme=dark]_&]:bg-zinc-900/30"
 	role="region"
 	aria-label="Preview"
 	bind:this={containerEl}

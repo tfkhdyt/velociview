@@ -1,18 +1,18 @@
 <script lang="ts">
 	let {
 		imageLoading,
-		tcxLoading,
+		gpxLoading,
 		onImageChange,
-		onTcxChange,
+		onGpxChange,
 		imageInputEl = $bindable(),
-		tcxInputEl = $bindable()
+		gpxInputEl = $bindable()
 	}: {
 		imageLoading: boolean;
-		tcxLoading: boolean;
+		gpxLoading: boolean;
 		onImageChange: (files: FileList | null) => void;
-		onTcxChange: (files: FileList | null) => void;
+		onGpxChange: (files: FileList | null) => void;
 		imageInputEl?: HTMLInputElement | null;
-		tcxInputEl?: HTMLInputElement | null;
+		gpxInputEl?: HTMLInputElement | null;
 	} = $props();
 </script>
 
@@ -47,40 +47,37 @@
 		</div>
 	</div>
 	<div class="space-y-2">
-		<label class="form-label inline-flex items-center gap-1" for="tcx-input">
-			GPX / TCX
+		<label class="form-label inline-flex items-center gap-1" for="gpx-input">
+			GPX
 			<span class="group relative z-[100] ml-1">
 				<button
 					type="button"
 					class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] leading-none text-muted hover:bg-foreground/10 focus:outline-none"
-					aria-describedby="tcx-tooltip"
-					aria-label="What is a GPX or TCX?">?</button
+					aria-describedby="gpx-tooltip"
+					aria-label="What is a GPX?">?</button
 				>
 				<span
-					id="tcx-tooltip"
+					id="gpx-tooltip"
 					role="tooltip"
-					class="pointer-events-none absolute top-full left-0 z-[101] mt-1 w-64 rounded-md border border-border bg-white/95 p-2 text-xs text-foreground opacity-0 shadow-xl backdrop-blur-sm duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [[data-theme=dark]_&]:bg-zinc-900/95"
+					class="pointer-events-none absolute bottom-full left-0 z-[101] mb-1 w-64 rounded-md border border-border bg-white/95 p-2 text-xs text-foreground opacity-0 shadow-xl backdrop-blur-sm duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [[data-theme=dark]_&]:bg-zinc-900/95"
 				>
-					<strong>What is a GPX or TCX?</strong> Activity files with GPS and workout stats.
-					<strong class="text-blue-600 [[data-theme=dark]_&]:text-blue-400"
-						>GPX (recommended)</strong
-					>
-					and TCX can be exported from apps like Strava, Garmin Connect, Wahoo, or Polar.
-					<em>GPX is preferred for better elevation data and compatibility.</em>
+					<strong>What is a GPX?</strong> Activity files with GPS and workout stats. GPX files can
+					be exported from apps like Strava, Garmin Connect, Wahoo, or Polar.
+					<em>GPX provides excellent elevation data and wide compatibility.</em>
 				</span>
 			</span>
 		</label>
 		<div class="relative">
 			<input
-				id="tcx-input"
+				id="gpx-input"
 				type="file"
-				accept=".gpx,.tcx"
-				onchange={(e) => onTcxChange((e.target as HTMLInputElement).files)}
-				disabled={tcxLoading}
+				accept=".gpx"
+				onchange={(e) => onGpxChange((e.target as HTMLInputElement).files)}
+				disabled={gpxLoading}
 				class="form-control pr-10 disabled:cursor-not-allowed disabled:opacity-50"
-				bind:this={tcxInputEl}
+				bind:this={gpxInputEl}
 			/>
-			{#if tcxLoading}
+			{#if gpxLoading}
 				<div class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
 					<svg
 						class="h-5 w-5 animate-spin text-accent"
