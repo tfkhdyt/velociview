@@ -4,6 +4,15 @@ import darkLogoUrl from '$lib/assets/dark-logo.png';
 import lightLogoUrl from '$lib/assets/light-logo.png';
 import type { StatValues } from '$lib/overlay';
 
+// File size limits (in bytes)
+export const MAX_IMAGE_SIZE = 50 * 1024 * 1024; // 50MB
+export const MAX_GPX_SIZE = 10 * 1024 * 1024; // 10MB
+
+// Watermark configuration
+export const WATERMARK_HEIGHT_RATIO = 0.015; // 1.5% of image height
+export const WATERMARK_FONT_SIZE_RATIO = 0.01; // 1% of image height
+export const WATERMARK_OPACITY = 0.4; // Semi-transparent
+
 export type PositionPreset =
 	| 'top'
 	| 'left'
@@ -73,14 +82,6 @@ export async function ensureFontLoaded(targetFamily: string): Promise<void> {
 	}
 }
 
-export function isGpxFile(file: File): boolean {
-	const name = file.name.toLowerCase();
-	if (name.endsWith('.gpx')) return true;
-	// Only check for GPX-specific MIME type if extension doesn't match
-	const type = file.type;
-	return type === 'application/gpx+xml';
-}
-
 export function isActivityFile(file: File): boolean {
 	const name = file.name.toLowerCase();
 	const hasValidExtension = name.endsWith('.gpx');
@@ -93,6 +94,18 @@ export function isActivityFile(file: File): boolean {
 
 export function isImageFile(file: File): boolean {
 	return file.type.startsWith('image/');
+}
+
+export function validateFileSize(file: File, maxSize: number): { valid: boolean; error?: string } {
+	if (file.size > maxSize) {
+		const maxMB = Math.round(maxSize / (1024 * 1024));
+		const fileMB = (file.size / (1024 * 1024)).toFixed(1);
+		return {
+			valid: false,
+			error: `File is too large (${fileMB} MB). Maximum size is ${maxMB} MB.`
+		};
+	}
+	return { valid: true };
 }
 
 export function getMimeAndExt(fmt: 'png' | 'jpeg' | 'webp'): {
@@ -231,7 +244,7 @@ export function drawWatermark(
 			? aspectSource.naturalWidth / Math.max(1, aspectSource.naturalHeight)
 			: 4;
 		// Use relative watermark size based on image dimensions for consistency across resolutions
-		const targetH = Math.max(12, Math.round(imageHeight * 0.015)); // Scale with image height (~1.5%)
+		const targetH = Math.max(12, Math.round(imageHeight * WATERMARK_HEIGHT_RATIO));
 		const targetW = Math.round(targetH * aspect);
 
 		type Corner = {
@@ -305,7 +318,7 @@ export function drawWatermark(
 			: (lightWatermarkImage ?? darkWatermarkImage);
 		if (logo) {
 			ctx.save();
-			ctx.globalAlpha = 0.4; // Semi-transparent watermark
+			ctx.globalAlpha = WATERMARK_OPACITY;
 			ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
 			ctx.shadowBlur = Math.round(targetH * 0.18);
 			ctx.shadowOffsetX = Math.round(targetH * 0.06);
@@ -321,7 +334,7 @@ export function drawWatermark(
 	// Fallback to text watermark if logo isn't available
 	const text = 'VelociView';
 	// Use relative font size based on image dimensions for consistency across resolutions
-	const fontSize = Math.max(10, Math.round(imageHeight * 0.01)); // Scale with image height (~1%)
+	const fontSize = Math.max(10, Math.round(imageHeight * WATERMARK_FONT_SIZE_RATIO));
 	const primaryFamily = uiFontFamily.split(',')[0]?.replace(/['"]/g, '').trim() || 'Inter';
 	// Measure text box for overlap determination
 	ctx.save();

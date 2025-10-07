@@ -9,6 +9,18 @@ import {
 } from './metrics';
 import type { StatValues } from './overlay';
 
+/**
+ * Parses GPX XML string and extracts activity statistics
+ *
+ * Security: The @we-gold/gpxjs library uses DOMParser which is safe from XXE
+ * (XML External Entity) attacks in modern browsers. The browser's DOMParser
+ * does not process external entities or DTDs by default, providing built-in
+ * protection against XXE vulnerabilities.
+ *
+ * @param xmlString - GPX file content as string
+ * @returns Parsed activity statistics
+ * @throws Error if GPX parsing fails or file is invalid
+ */
 export async function parseGpxToOverlayValues(xmlString: string): Promise<StatValues> {
 	try {
 		const [parsedGPX, error] = parseGPX(xmlString);
