@@ -630,7 +630,6 @@
 			bind:gpxInputEl
 			onImageChange={handleImageChange}
 			onGpxChange={handleGpxChange}
-			onResetClick={resetAll}
 			{selectedFields}
 			onFieldsChange={(next) => {
 				selectedFields = next;
@@ -678,14 +677,6 @@
 				exportFormat = f;
 				exportQuality = q;
 			}}
-			{canCopyToClipboard}
-			{canShare}
-			{copying}
-			{sharing}
-			{justCopied}
-			onExportClick={exportImage}
-			onCopyClick={copyImageToClipboard}
-			onShareClick={shareImage}
 		/>
 
 		<PreviewCard
@@ -714,6 +705,15 @@
 				posY = y;
 				positionPreset = 'custom';
 			}}
+			{canCopyToClipboard}
+			{canShare}
+			{copying}
+			{sharing}
+			{justCopied}
+			onExportClick={exportImage}
+			onCopyClick={copyImageToClipboard}
+			onShareClick={shareImage}
+			onResetClick={resetAll}
 		/>
 		<canvas bind:this={canvasEl} class="hidden"></canvas>
 	</div>

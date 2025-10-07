@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActionButtons from '$lib/components/ActionButtons.svelte';
 	import {
 		renderOverlay,
 		type OverlayField,
@@ -27,7 +28,17 @@
 		containerEl = $bindable(),
 		previewCanvasEl = $bindable(),
 		onPositionChange,
-		onRendered
+		onRendered,
+		// action buttons
+		canCopyToClipboard,
+		canShare,
+		copying,
+		sharing,
+		justCopied,
+		onExportClick,
+		onCopyClick,
+		onShareClick,
+		onResetClick
 	}: {
 		hasImage: boolean;
 		imageBitmap: ImageBitmap | null;
@@ -47,6 +58,15 @@
 		previewCanvasEl?: HTMLCanvasElement | null;
 		onPositionChange: (pos: { x: number; y: number }) => void;
 		onRendered?: () => void;
+		canCopyToClipboard: boolean;
+		canShare: boolean;
+		copying: boolean;
+		sharing: boolean;
+		justCopied: boolean;
+		onExportClick: () => void | Promise<void>;
+		onCopyClick: () => void | Promise<void>;
+		onShareClick: () => void | Promise<void>;
+		onResetClick: () => void;
 	} = $props();
 
 	let previewCtx: CanvasRenderingContext2D | null = null;
@@ -285,5 +305,21 @@
 		>
 			Your image will be shown here.
 		</div>
+	{/if}
+
+	{#if values && imageBitmap}
+		<hr class="my-4 border-t border-border" />
+		<ActionButtons
+			canExport={Boolean(imageBitmap && values)}
+			canCopy={Boolean(imageBitmap && values && canCopyToClipboard)}
+			canShare={Boolean(imageBitmap && values && canShare)}
+			{copying}
+			{sharing}
+			{justCopied}
+			{onExportClick}
+			{onCopyClick}
+			{onShareClick}
+			{onResetClick}
+		/>
 	{/if}
 </div>

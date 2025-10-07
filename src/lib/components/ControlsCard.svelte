@@ -1,5 +1,4 @@
 <script lang="ts">
-	import ActionButtons from '$lib/components/ActionButtons.svelte';
 	import AppearanceControls from '$lib/components/AppearanceControls.svelte';
 	import ExportControls from '$lib/components/ExportControls.svelte';
 	import FieldsSelector from '$lib/components/FieldsSelector.svelte';
@@ -18,7 +17,6 @@
 		gpxInputEl = $bindable(),
 		onImageChange,
 		onGpxChange,
-		onResetClick,
 		// fields & position
 		selectedFields,
 		onFieldsChange,
@@ -41,16 +39,7 @@
 		// export
 		exportFormat,
 		exportQuality,
-		onExportOptionsChange,
-		// actions
-		canCopyToClipboard,
-		canShare,
-		copying,
-		sharing,
-		justCopied,
-		onExportClick,
-		onCopyClick,
-		onShareClick
+		onExportOptionsChange
 	}: {
 		imageLoading: boolean;
 		gpxLoading: boolean;
@@ -60,7 +49,6 @@
 		gpxInputEl: HTMLInputElement | null;
 		onImageChange: (files: FileList | null) => void | Promise<void>;
 		onGpxChange: (files: FileList | null) => void | Promise<void>;
-		onResetClick: () => void;
 		selectedFields: OverlayField[];
 		onFieldsChange: (next: OverlayField[]) => void;
 		positionPreset: PositionPreset | 'custom';
@@ -87,14 +75,6 @@
 			exportFormat: 'png' | 'jpeg' | 'webp';
 			exportQuality: number;
 		}) => void;
-		canCopyToClipboard: boolean;
-		canShare: boolean;
-		copying: boolean;
-		sharing: boolean;
-		justCopied: boolean;
-		onExportClick: () => void | Promise<void>;
-		onCopyClick: () => void | Promise<void>;
-		onShareClick: () => void | Promise<void>;
 	} = $props();
 </script>
 
@@ -144,19 +124,6 @@
 
 				<ExportControls {exportFormat} {exportQuality} onChange={onExportOptionsChange} />
 			</div>
-
-			<ActionButtons
-				canExport={Boolean(imageBitmap && values)}
-				canCopy={Boolean(imageBitmap && values && canCopyToClipboard)}
-				canShare={Boolean(imageBitmap && values && canShare)}
-				{copying}
-				{sharing}
-				{justCopied}
-				{onExportClick}
-				{onCopyClick}
-				{onShareClick}
-				{onResetClick}
-			/>
 		</div>
 	{/if}
 </div>
