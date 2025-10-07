@@ -19,10 +19,14 @@
 		GOOGLE_FONTS,
 		isActivityFile,
 		isImageFile,
+		MAX_GPX_SIZE,
+		MAX_IMAGE_SIZE,
 		presetToPosition,
+		validateFileSize,
 		type PositionPreset
 	} from '$lib/page-utils';
 	import { onMount, tick } from 'svelte';
+	import toast, { Toaster } from 'svelte-french-toast';
 
 	// removed unused file state to satisfy linter
 	let imageBitmap: ImageBitmap | null = $state(null);
@@ -288,8 +292,15 @@
 		const file = files[0];
 		// Validate file type (important for Android browsers that don't respect accept attribute)
 		if (!isImageFile(file)) {
-			alert('Please select a valid image file (JPEG, PNG, WebP, etc.).');
+			toast.error('Please select a valid image file (JPEG, PNG, WebP, etc.).');
 			// Clear the file input to reset the state
+			if (imageInputEl) imageInputEl.value = '';
+			return;
+		}
+		// Validate file size
+		const sizeValidation = validateFileSize(file, MAX_IMAGE_SIZE);
+		if (!sizeValidation.valid) {
+			toast.error(sizeValidation.error!);
 			if (imageInputEl) imageInputEl.value = '';
 			return;
 		}
@@ -313,8 +324,15 @@
 		const file = files[0];
 		// Validate file type (important for Android browsers that don't respect accept attribute)
 		if (!isActivityFile(file)) {
-			alert('Please select a valid GPX file.');
+			toast.error('Please select a valid GPX file.');
 			// Clear the file input to reset the state
+			if (gpxInputEl) gpxInputEl.value = '';
+			return;
+		}
+		// Validate file size
+		const sizeValidation = validateFileSize(file, MAX_GPX_SIZE);
+		if (!sizeValidation.valid) {
+			toast.error(sizeValidation.error!);
 			if (gpxInputEl) gpxInputEl.value = '';
 			return;
 		}
@@ -325,8 +343,33 @@
 		const arr: File[] = Array.from(files as unknown as ArrayLike<File>);
 		const image = arr.find((f) => isImageFile(f));
 		const activity = arr.find((f) => isActivityFile(f));
-		if (image) await loadImageFile(image);
-		if (activity) await loadGpxFile(activity);
+
+		// Provide feedback if no valid files were dropped
+		if (!image && !activity) {
+			toast('Please drop a valid image file (JPEG, PNG, etc.) or GPX file.', {
+				icon: '⚠️'
+			});
+			return;
+		}
+
+		// Validate file sizes before processing
+		if (image) {
+			const sizeValidation = validateFileSize(image, MAX_IMAGE_SIZE);
+			if (!sizeValidation.valid) {
+				toast.error(sizeValidation.error!);
+				return;
+			}
+			await loadImageFile(image);
+		}
+
+		if (activity) {
+			const sizeValidation = validateFileSize(activity, MAX_GPX_SIZE);
+			if (!sizeValidation.valid) {
+				toast.error(sizeValidation.error!);
+				return;
+			}
+			await loadGpxFile(activity);
+		}
 	}
 
 	// Document-level (page-wide) dropzone handlers
@@ -734,6 +777,14 @@
 		<canvas bind:this={canvasEl} class="hidden"></canvas>
 	</div>
 </section>
+
+<Toaster
+	position="top-right"
+	toastOptions={{
+		duration: 4000,
+		style: 'border-radius: 0.5rem; padding: 1rem;'
+	}}
+/>
 
 <FloatingPreviewButton
 	visible={floatingVisible}

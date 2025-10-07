@@ -47,6 +47,7 @@
 	"dependencies": {
 		"@lucide/svelte": "^0.544.0",
 		"@sports-alliance/sports-lib": "^5.4.24",
-		"@we-gold/gpxjs": "^1.1.0"
+		"@we-gold/gpxjs": "^1.1.0",
+		"svelte-french-toast": "^1.2.0"
 	}
 }
