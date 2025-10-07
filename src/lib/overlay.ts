@@ -145,13 +145,29 @@ function drawSmallRouteMap(
 ): void {
 	if (!routePoints || routePoints.length < 2) return;
 
-	// Find bounding box
-	let minLat = routePoints[0].lat;
-	let maxLat = routePoints[0].lat;
-	let minLon = routePoints[0].lon;
-	let maxLon = routePoints[0].lon;
+	// Validate and filter out invalid points
+	const validPoints = routePoints.filter(
+		(p) =>
+			p &&
+			typeof p.lat === 'number' &&
+			typeof p.lon === 'number' &&
+			isFinite(p.lat) &&
+			isFinite(p.lon) &&
+			p.lat >= -90 &&
+			p.lat <= 90 &&
+			p.lon >= -180 &&
+			p.lon <= 180
+	);
 
-	for (const p of routePoints) {
+	if (validPoints.length < 2) return;
+
+	// Find bounding box
+	let minLat = validPoints[0].lat;
+	let maxLat = validPoints[0].lat;
+	let minLon = validPoints[0].lon;
+	let maxLon = validPoints[0].lon;
+
+	for (const p of validPoints) {
 		if (p.lat < minLat) minLat = p.lat;
 		if (p.lat > maxLat) maxLat = p.lat;
 		if (p.lon < minLon) minLon = p.lon;
@@ -178,11 +194,11 @@ function drawSmallRouteMap(
 
 	ctx.save();
 	ctx.beginPath();
-	const firstPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	const firstPoint = toCanvasCoords(validPoints[0].lat, validPoints[0].lon);
 	ctx.moveTo(firstPoint.x, firstPoint.y);
 
-	for (let i = 1; i < routePoints.length; i++) {
-		const point = toCanvasCoords(routePoints[i].lat, routePoints[i].lon);
+	for (let i = 1; i < validPoints.length; i++) {
+		const point = toCanvasCoords(validPoints[i].lat, validPoints[i].lon);
 		ctx.lineTo(point.x, point.y);
 	}
 
@@ -193,7 +209,7 @@ function drawSmallRouteMap(
 	ctx.stroke();
 
 	// Draw start point (green circle)
-	const startPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	const startPoint = toCanvasCoords(validPoints[0].lat, validPoints[0].lon);
 	ctx.beginPath();
 	ctx.arc(startPoint.x, startPoint.y, Math.max(2, width * 0.025), 0, Math.PI * 2);
 	ctx.fillStyle = '#00FF00';
@@ -201,8 +217,8 @@ function drawSmallRouteMap(
 
 	// Draw end point (red circle)
 	const endPoint = toCanvasCoords(
-		routePoints[routePoints.length - 1].lat,
-		routePoints[routePoints.length - 1].lon
+		validPoints[validPoints.length - 1].lat,
+		validPoints[validPoints.length - 1].lon
 	);
 	ctx.beginPath();
 	ctx.arc(endPoint.x, endPoint.y, Math.max(2, width * 0.025), 0, Math.PI * 2);

@@ -76,21 +76,28 @@ export async function ensureFontLoaded(targetFamily: string): Promise<void> {
 export function isTcxFile(file: File): boolean {
 	const name = file.name.toLowerCase();
 	if (name.endsWith('.tcx')) return true;
+	// Only check for TCX-specific MIME type if extension doesn't match
 	const type = file.type;
-	return (
-		type === 'application/vnd.garmin.tcx+xml' || type === 'application/xml' || type === 'text/xml'
-	);
+	return type === 'application/vnd.garmin.tcx+xml';
 }
 
 export function isGpxFile(file: File): boolean {
 	const name = file.name.toLowerCase();
 	if (name.endsWith('.gpx')) return true;
+	// Only check for GPX-specific MIME type if extension doesn't match
 	const type = file.type;
-	return type === 'application/gpx+xml' || type === 'application/xml' || type === 'text/xml';
+	return type === 'application/gpx+xml';
 }
 
 export function isActivityFile(file: File): boolean {
-	return isTcxFile(file) || isGpxFile(file);
+	const name = file.name.toLowerCase();
+	const hasValidExtension = name.endsWith('.tcx') || name.endsWith('.gpx');
+	const hasValidMime =
+		file.type === 'application/vnd.garmin.tcx+xml' ||
+		file.type === 'application/gpx+xml' ||
+		file.type === 'application/xml' ||
+		file.type === 'text/xml';
+	return hasValidExtension || hasValidMime;
 }
 
 export function isImageFile(file: File): boolean {
@@ -141,7 +148,16 @@ export function presetToPosition(
 }
 
 export function buildDownloadFilename(baseName: string, values: StatValues, ext: string): string {
-	const base = baseName || 'overlay';
+	// Prefer track title from activity file if available
+	let base = baseName || 'overlay';
+	if (values.trackName && values.trackName.trim().length > 0) {
+		// Sanitize track name similar to image base name
+		base = values.trackName
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/gi, '-')
+			.replace(/^-+|-+$/g, '');
+	}
+
 	const distMatch = values.distance.match(/([0-9]+(?:\.[0-9]+)?)/);
 	const distPart = distMatch ? `${distMatch[1]}km` : null;
 	const timePart = values.movingTime.replace(/[^0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -368,11 +384,27 @@ export function drawRouteOnCanvas(
 ): void {
 	if (!routePoints || routePoints.length < 2) return;
 
+	// Validate and filter out invalid points
+	const validPoints = routePoints.filter(
+		(p) =>
+			p &&
+			typeof p.lat === 'number' &&
+			typeof p.lon === 'number' &&
+			isFinite(p.lat) &&
+			isFinite(p.lon) &&
+			p.lat >= -90 &&
+			p.lat <= 90 &&
+			p.lon >= -180 &&
+			p.lon <= 180
+	);
+
+	if (validPoints.length < 2) return;
+
 	const { scale: userScale, position, color, lineWidth } = options;
 
 	// Calculate bounds
-	const lats = routePoints.map((p) => p.lat);
-	const lons = routePoints.map((p) => p.lon);
+	const lats = validPoints.map((p) => p.lat);
+	const lons = validPoints.map((p) => p.lon);
 	const minLat = Math.min(...lats);
 	const maxLat = Math.max(...lats);
 	const minLon = Math.min(...lons);
@@ -415,11 +447,11 @@ export function drawRouteOnCanvas(
 
 	// Draw route path
 	ctx.beginPath();
-	const firstPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	const firstPoint = toCanvasCoords(validPoints[0].lat, validPoints[0].lon);
 	ctx.moveTo(firstPoint.x, firstPoint.y);
 
-	for (let i = 1; i < routePoints.length; i++) {
-		const point = toCanvasCoords(routePoints[i].lat, routePoints[i].lon);
+	for (let i = 1; i < validPoints.length; i++) {
+		const point = toCanvasCoords(validPoints[i].lat, validPoints[i].lon);
 		ctx.lineTo(point.x, point.y);
 	}
 
@@ -438,7 +470,7 @@ export function drawRouteOnCanvas(
 	ctx.stroke();
 
 	// Draw start point (green circle)
-	const startPoint = toCanvasCoords(routePoints[0].lat, routePoints[0].lon);
+	const startPoint = toCanvasCoords(validPoints[0].lat, validPoints[0].lon);
 	ctx.beginPath();
 	ctx.arc(startPoint.x, startPoint.y, Math.max(5, imageWidth * 0.004), 0, Math.PI * 2);
 	ctx.fillStyle = '#00FF00';
@@ -451,8 +483,8 @@ export function drawRouteOnCanvas(
 
 	// Draw end point (red circle)
 	const endPoint = toCanvasCoords(
-		routePoints[routePoints.length - 1].lat,
-		routePoints[routePoints.length - 1].lon
+		validPoints[validPoints.length - 1].lat,
+		validPoints[validPoints.length - 1].lon
 	);
 	ctx.beginPath();
 	ctx.arc(endPoint.x, endPoint.y, Math.max(5, imageWidth * 0.004), 0, Math.PI * 2);
