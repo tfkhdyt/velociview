@@ -1,6 +1,8 @@
 # VelociView
 
-Generate clean, customizable image overlays of your activity stats from TCX or GPX files. Drop in a photo and an activity file, tweak the appearance, and export a polished image ready to share.
+Generate clean, customizable image overlays of your activity stats from GPX or TCX files. Drop in a photo and an activity file, tweak the appearance, and export a polished image ready to share.
+
+**💡 Tip:** We recommend using **GPX files** for best results — they provide more complete elevation data, better GPS accuracy, and wider compatibility across fitness platforms.
 
 ![Svelte](https://img.shields.io/badge/Svelte-F73C00?logo=svelte&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
@@ -53,7 +55,7 @@ pnpm preview
 ## Usage
 
 1. Upload or drag-and-drop a background image.
-2. Upload or drag-and-drop a `.tcx` or `.gpx` file (e.g., from Garmin/Strava export).
+2. Upload or drag-and-drop a `.gpx` (recommended) or `.tcx` file (e.g., from Garmin/Strava export).
 3. Choose which fields to display, then adjust position, layout, and appearance.
 4. Export the image or copy it to your clipboard.
 

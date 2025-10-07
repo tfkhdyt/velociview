@@ -604,9 +604,16 @@
 		</h2>
 		<p class="mt-1 text-sm text-muted">
 			VelociView turns your workouts into clean, shareable overlays. Upload a photo and a
-			<code>.tcx</code> or <code>.gpx</code> file, pick the stats you want, then fine‑tune layout and
-			appearance to match your style.
+			<code>.gpx</code> file (recommended) or <code>.tcx</code> file, pick the stats you want, then fine‑tune
+			layout and appearance to match your style.
 		</p>
+		<div
+			class="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2 text-xs text-blue-900 [[data-theme=dark]_&]:border-blue-800/50 [[data-theme=dark]_&]:bg-blue-950/30 [[data-theme=dark]_&]:text-blue-200"
+		>
+			<strong>💡 Tip:</strong> We recommend using <strong>GPX files</strong> for best results. GPX provides
+			more complete data including elevation profiles, better GPS accuracy, and wider compatibility across
+			fitness platforms.
+		</div>
 
 		{#if values?.trackName || values?.trackDescription}
 			<div

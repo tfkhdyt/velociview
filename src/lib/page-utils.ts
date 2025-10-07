@@ -91,7 +91,7 @@ export function isGpxFile(file: File): boolean {
 
 export function isActivityFile(file: File): boolean {
 	const name = file.name.toLowerCase();
-	const hasValidExtension = name.endsWith('.tcx') || name.endsWith('.gpx');
+	const hasValidExtension = name.endsWith('.gpx') || name.endsWith('.tcx');
 	const hasValidMime =
 		file.type === 'application/vnd.garmin.tcx+xml' ||
 		file.type === 'application/gpx+xml' ||
