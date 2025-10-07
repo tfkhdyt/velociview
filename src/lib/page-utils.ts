@@ -305,6 +305,7 @@ export function drawWatermark(
 			: (lightWatermarkImage ?? darkWatermarkImage);
 		if (logo) {
 			ctx.save();
+			ctx.globalAlpha = 0.4; // Semi-transparent watermark
 			ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
 			ctx.shadowBlur = Math.round(targetH * 0.18);
 			ctx.shadowOffsetX = Math.round(targetH * 0.06);
