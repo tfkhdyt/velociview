@@ -243,6 +243,7 @@
 	function resetAll(): void {
 		// Clear file state
 		if (imageUrl) URL.revokeObjectURL(imageUrl);
+		if (imageBitmap) imageBitmap.close();
 		imageBitmap = null;
 		imageUrl = null;
 		imageBaseName = '';
@@ -268,6 +269,7 @@
 		imageLoading = true;
 		try {
 			if (imageUrl) URL.revokeObjectURL(imageUrl);
+			if (imageBitmap) imageBitmap.close();
 			imageUrl = URL.createObjectURL(file);
 			// derive a safe base name from the original file name (without extension)
 			const rawBase = file.name.replace(/\.[^.]+$/, '');

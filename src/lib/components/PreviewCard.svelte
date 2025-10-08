@@ -79,6 +79,16 @@
 	let showCenterGuideH = $state(false);
 	const SNAP_THRESHOLD_PX = 10;
 
+	// Reset context when canvas element changes (e.g., after reset)
+	$effect(() => {
+		if (previewCanvasEl) {
+			previewCtx = null;
+			ensureContext();
+		} else {
+			previewCtx = null;
+		}
+	});
+
 	function ensureContext(): void {
 		if (previewCanvasEl && !previewCtx) {
 			const c = previewCanvasEl.getContext('2d', { willReadFrequently: true });
