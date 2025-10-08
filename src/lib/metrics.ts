@@ -1,11 +1,15 @@
 export function formatDuration(totalSeconds: number): string {
-	const hours = Math.floor(totalSeconds / 3600);
-	const minutes = Math.floor((totalSeconds % 3600) / 60);
-	const seconds = Math.floor(totalSeconds % 60);
+	const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+	const hours = Math.floor(safeSeconds / 3600);
+	const minutes = Math.floor((safeSeconds % 3600) / 60);
+	const seconds = safeSeconds % 60;
+
 	const parts: string[] = [];
 	if (hours > 0) parts.push(`${hours}h`);
-	if (hours > 0 || minutes > 0) parts.push(`${minutes}m`);
-	parts.push(`${seconds}s`);
+	if (minutes > 0) parts.push(`${minutes}m`);
+	// Always show seconds if there are no hours/minutes; otherwise omit when zero
+	if (seconds > 0 || (hours === 0 && minutes === 0)) parts.push(`${seconds}s`);
+
 	return parts.join(' ');
 }
 
