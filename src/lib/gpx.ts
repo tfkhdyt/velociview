@@ -67,7 +67,7 @@ export async function parseGpxToOverlayValues(xmlString: string): Promise<StatVa
 		const MAX_REALISTIC_SPEED_MPS = 41.67; // 150 km/h - filters GPS noise
 
 		for (let i = SAMPLE_INTERVAL; i < points.length; i += SAMPLE_INTERVAL) {
-			const p1 = points[i - SAMPLE_INTERVAL];
+			const p1 = points[i - 1];
 			const p2 = points[i];
 			if (p1?.time && p2?.time && p1.latitude && p1.longitude && p2.latitude && p2.longitude) {
 				const timeDiff = (new Date(p2.time).getTime() - new Date(p1.time).getTime()) / 1000;
