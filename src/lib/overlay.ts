@@ -313,8 +313,8 @@ export function renderOverlay(
 	const compensation = Math.max(0.85, Math.min(1.2, widthRatio));
 	const valueFontSize = Math.max(12, baseFontSize * opts.scale * compensation);
 	const labelFontSize = Math.max(10, Math.round(valueFontSize * 0.5));
-	const valueFontWeight = 600;
-	const labelFontWeight = 400;
+	const valueFontWeight = 700;
+	const labelFontWeight = 500;
 	const padding = Math.round(valueFontSize * 0.5);
 	const lineGap = Math.round(valueFontSize * 0.45); // gap between items / rows
 	const labelGap = Math.round(valueFontSize * 0.2); // gap between label and value
