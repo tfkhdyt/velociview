@@ -1,13 +1,17 @@
 import { parseGPX } from '@we-gold/gpxjs';
 import {
 	calculatePointDistance,
+	formatDistance,
 	formatDuration,
-	formatNumber,
+	formatElevation,
 	formatPace,
+	formatPaceImperial,
+	formatSpeed,
 	paceMinPerKm,
-	speedToKmh
+	paceMinPerMile
 } from './metrics';
 import type { StatValues } from './overlay';
+import type { UnitSystem } from './units';
 
 /**
  * Parses GPX XML string and extracts activity statistics
@@ -21,7 +25,23 @@ import type { StatValues } from './overlay';
  * @returns Parsed activity statistics
  * @throws Error if GPX parsing fails or file is invalid
  */
-export async function parseGpxToOverlayValues(xmlString: string): Promise<StatValues> {
+export interface RawStatValues {
+	distanceMeters: number;
+	movingTimeSec: number;
+	avgSpeedMps: number;
+	maxSpeedMps: number;
+	ascentM: number;
+	descentM: number;
+	maxElevationM?: number;
+	minElevationM?: number;
+	avgElevationM?: number;
+	hasElevationData: boolean;
+	routePoints?: Array<{ lat: number; lon: number }>;
+	trackName?: string;
+	trackDescription?: string;
+}
+
+export async function parseGpxToRawStats(xmlString: string): Promise<RawStatValues> {
 	try {
 		const [parsedGPX, error] = parseGPX(xmlString);
 
@@ -46,18 +66,15 @@ export async function parseGpxToOverlayValues(xmlString: string): Promise<StatVa
 			throw new Error('GPX parsing failed: Track contains no distance or position data');
 		}
 
-		// Distance (convert from meters to km)
-		const distanceKm = track.distance?.total ? track.distance.total / 1000 : 0;
-		const distance = `${formatNumber(distanceKm, 2)} km`;
+		// Distance in meters
+		const distanceMeters = track.distance?.total ? track.distance.total : 0;
 
 		// Moving time (in seconds)
 		const movingTimeSec = track.duration?.movingDuration || 0;
-		const movingTime = formatDuration(movingTimeSec);
+		// Keep raw seconds for later formatting
 
-		// Calculate speeds
+		// Calculate speeds (m/s)
 		const avgSpeedMps = movingTimeSec > 0 ? (track.distance?.total || 0) / movingTimeSec : 0;
-		const avgSpeedKmh = speedToKmh(avgSpeedMps);
-		const avgSpeed = `${formatNumber(avgSpeedKmh, 1)} km/h`;
 
 		// Max speed - find from points (optimized for performance)
 		let maxSpeedMps = 0;
@@ -83,15 +100,9 @@ export async function parseGpxToOverlayValues(xmlString: string): Promise<StatVa
 				}
 			}
 		}
-		const maxSpeedKmh = speedToKmh(maxSpeedMps);
-		const maxSpeed = `${formatNumber(maxSpeedKmh, 1)} km/h`;
+		// Keep raw m/s for max speed
 
-		// Pace
-		const avgPaceMinPerKm = paceMinPerKm(avgSpeedMps);
-		const avgPace = avgPaceMinPerKm > 0 ? formatPace(avgPaceMinPerKm) : undefined;
-
-		const maxPaceMinPerKm = maxSpeedMps > 0 ? paceMinPerKm(maxSpeedMps) : 0;
-		const maxPace = maxPaceMinPerKm > 0 ? formatPace(maxPaceMinPerKm) : undefined;
+		// Paces will be computed during formatting according to units
 
 		// Elevation - check if elevation data exists in the GPX file
 		const hasElevationData =
@@ -101,29 +112,17 @@ export async function parseGpxToOverlayValues(xmlString: string): Promise<StatVa
 				track.elevation.maximum ||
 				track.elevation.minimum);
 
-		const ascent = track.elevation?.positive
-			? `${formatNumber(track.elevation.positive, 0)} m`
-			: hasElevationData
-				? '0 m'
-				: 'N/A';
+		const ascentM = track.elevation?.positive || 0;
 
-		const descentVal = track.elevation?.negative || 0;
-		const descent =
-			descentVal > 0 ? `${formatNumber(descentVal, 0)} m` : hasElevationData ? '0 m' : 'N/A';
+		const descentM = track.elevation?.negative || 0;
 
 		// Additional elevation metrics (only if elevation data exists)
-		const maxElevation =
-			hasElevationData && track.elevation?.maximum
-				? `${formatNumber(track.elevation.maximum, 0)} m`
-				: undefined;
-		const minElevation =
-			hasElevationData && track.elevation?.minimum
-				? `${formatNumber(track.elevation.minimum, 0)} m`
-				: undefined;
-		const avgElevation =
-			hasElevationData && track.elevation?.average
-				? `${formatNumber(track.elevation.average, 0)} m`
-				: undefined;
+		const maxElevationM =
+			hasElevationData && track.elevation?.maximum ? track.elevation.maximum : undefined;
+		const minElevationM =
+			hasElevationData && track.elevation?.minimum ? track.elevation.minimum : undefined;
+		const avgElevationM =
+			hasElevationData && track.elevation?.average ? track.elevation.average : undefined;
 
 		// Route points (GPS coordinates)
 		const routePoints = track.points
@@ -138,17 +137,16 @@ export async function parseGpxToOverlayValues(xmlString: string): Promise<StatVa
 		const trackDescription = track.description || track.comment || undefined;
 
 		return {
-			distance,
-			movingTime,
-			avgSpeed,
-			maxSpeed,
-			avgPace,
-			maxPace,
-			ascent,
-			descent,
-			maxElevation,
-			minElevation,
-			avgElevation,
+			distanceMeters,
+			movingTimeSec,
+			avgSpeedMps,
+			maxSpeedMps,
+			ascentM,
+			descentM,
+			maxElevationM,
+			minElevationM,
+			avgElevationM,
+			hasElevationData: Boolean(hasElevationData),
 			routePoints,
 			trackName,
 			trackDescription
@@ -163,4 +161,57 @@ export async function parseGpxToOverlayValues(xmlString: string): Promise<StatVa
 			`Unexpected error parsing GPX: ${error instanceof Error ? error.message : String(error)}`
 		);
 	}
+}
+
+export function formatStats(raw: RawStatValues, units: UnitSystem): StatValues {
+	const distance = formatDistance(raw.distanceMeters, units);
+	const movingTime = formatDuration(raw.movingTimeSec);
+	const avgSpeed = formatSpeed(raw.avgSpeedMps, units);
+	const maxSpeed = formatSpeed(raw.maxSpeedMps, units);
+
+	let avgPace: string | undefined;
+	let maxPace: string | undefined;
+	if (units === 'imperial') {
+		const a = paceMinPerMile(raw.avgSpeedMps);
+		avgPace = a > 0 ? formatPaceImperial(a) : undefined;
+		const m = raw.maxSpeedMps > 0 ? paceMinPerMile(raw.maxSpeedMps) : 0;
+		maxPace = m > 0 ? formatPaceImperial(m) : undefined;
+	} else {
+		const a = paceMinPerKm(raw.avgSpeedMps);
+		avgPace = a > 0 ? formatPace(a) : undefined;
+		const m = raw.maxSpeedMps > 0 ? paceMinPerKm(raw.maxSpeedMps) : 0;
+		maxPace = m > 0 ? formatPace(m) : undefined;
+	}
+
+	const ascent = formatElevation(raw.ascentM, units);
+	const descent = formatElevation(raw.descentM, units);
+	const maxElevation =
+		raw.maxElevationM !== undefined ? formatElevation(raw.maxElevationM, units) : undefined;
+	const minElevation =
+		raw.minElevationM !== undefined ? formatElevation(raw.minElevationM, units) : undefined;
+	const avgElevation =
+		raw.avgElevationM !== undefined ? formatElevation(raw.avgElevationM, units) : undefined;
+
+	return {
+		distance,
+		movingTime,
+		avgSpeed,
+		maxSpeed,
+		avgPace,
+		maxPace,
+		ascent,
+		descent,
+		maxElevation,
+		minElevation,
+		avgElevation,
+		routePoints: raw.routePoints,
+		trackName: raw.trackName,
+		trackDescription: raw.trackDescription
+	};
+}
+
+// Backward compatibility: default to metric formatting
+export async function parseGpxToOverlayValues(xmlString: string): Promise<StatValues> {
+	const raw = await parseGpxToRawStats(xmlString);
+	return formatStats(raw, 'metric');
 }

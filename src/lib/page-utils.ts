@@ -163,8 +163,8 @@ export function buildDownloadFilename(baseName: string, values: StatValues, ext:
 			.replace(/^-+|-+$/g, '');
 	}
 
-	const distMatch = values.distance.match(/([0-9]+(?:\.[0-9]+)?)/);
-	const distPart = distMatch ? `${distMatch[1]}km` : null;
+	const distMatch = values.distance.match(/([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z/]+)?/);
+	const distPart = distMatch ? `${distMatch[1]}${(distMatch[2] || '').toLowerCase()}` : null;
 	const timePart = values.movingTime.replace(/[^0-9]+/g, '-').replace(/^-+|-+$/g, '');
 	const parts = [base, distPart, timePart].filter((p): p is string => Boolean(p && p.length > 0));
 	return `${parts.join('_')}.${ext}`;

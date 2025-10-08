@@ -35,6 +35,8 @@
 		scale,
 		backdropOpacity,
 		textAlign,
+		unitSystem,
+		onUnitsChange,
 		onFontSelect,
 		onScaleChange,
 		onBackdropOpacityChange,
@@ -72,6 +74,8 @@
 		scale: number;
 		backdropOpacity: number;
 		textAlign: 'left' | 'center' | 'right';
+		unitSystem: 'metric' | 'imperial';
+		onUnitsChange: (v: 'metric' | 'imperial') => void;
 		onFontSelect: (entry: { family: string; fallback: string }) => void | Promise<void>;
 		onScaleChange: (v: number) => void;
 		onBackdropOpacityChange: (v: number) => void;
@@ -129,6 +133,8 @@
 					{scale}
 					{backdropOpacity}
 					{textAlign}
+					{unitSystem}
+					{onUnitsChange}
 					{onFontSelect}
 					{onScaleChange}
 					{onBackdropOpacityChange}

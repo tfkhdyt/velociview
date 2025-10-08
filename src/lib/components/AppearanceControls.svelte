@@ -6,6 +6,8 @@
 		scale,
 		backdropOpacity,
 		textAlign,
+		unitSystem,
+		onUnitsChange,
 		onFontSelect,
 		onScaleChange,
 		onBackdropOpacityChange,
@@ -15,6 +17,8 @@
 		scale: number;
 		backdropOpacity: number;
 		textAlign: 'left' | 'center' | 'right';
+		unitSystem: 'metric' | 'imperial';
+		onUnitsChange: (value: 'metric' | 'imperial') => void;
 		onFontSelect: (font: GoogleFontEntry) => void;
 		onScaleChange: (value: number) => void;
 		onBackdropOpacityChange: (value: number) => void;
@@ -40,6 +44,18 @@
 						>{f.label}</option
 					>
 				{/each}
+			</select>
+		</label>
+		<label class="block text-sm">
+			<span class="form-label">Units</span>
+			<select
+				bind:value={unitSystem}
+				class="form-control"
+				onchange={(e) =>
+					onUnitsChange((e.target as HTMLSelectElement).value as 'metric' | 'imperial')}
+			>
+				<option value="metric">Metric (km, km/h, min/km, m)</option>
+				<option value="imperial">Imperial (mi, mph, min/mi, ft)</option>
 			</select>
 		</label>
 		<label class="block text-sm">

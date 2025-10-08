@@ -1,6 +1,6 @@
-import { parseGpxToOverlayValues } from './gpx';
-import type { StatValues } from './overlay';
+import type { RawStatValues } from './gpx';
+import { parseGpxToRawStats } from './gpx';
 
-export async function parseActivityFile(xmlString: string): Promise<StatValues> {
-	return parseGpxToOverlayValues(xmlString);
+export async function parseActivityFile(xmlString: string): Promise<RawStatValues> {
+	return parseGpxToRawStats(xmlString);
 }

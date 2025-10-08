@@ -50,3 +50,46 @@ export function calculatePointDistance(
 
 	return R * c;
 }
+
+// =============== Unit-aware helpers ===============
+import type { UnitSystem } from './units';
+
+const METERS_PER_KM = 1000;
+const METERS_PER_MILE = 1609.344;
+const MPS_TO_MPH = 2.2369362920544;
+const METERS_TO_FEET = 3.28084;
+
+export function formatDistance(meters: number, units: UnitSystem): string {
+	const value = units === 'imperial' ? meters / METERS_PER_MILE : meters / METERS_PER_KM;
+	return `${formatNumber(value, 2)} ${units === 'imperial' ? 'mi' : 'km'}`;
+}
+
+export function formatSpeed(metersPerSecond: number, units: UnitSystem): string {
+	if (units === 'imperial') {
+		const mph = metersPerSecond * MPS_TO_MPH;
+		return `${formatNumber(mph, 1)} mph`;
+	}
+	const kmh = speedToKmh(metersPerSecond);
+	return `${formatNumber(kmh, 1)} km/h`;
+}
+
+export function paceMinPerMile(metersPerSecond: number): number {
+	if (metersPerSecond <= 0) return 0;
+	const secPerMile = METERS_PER_MILE / metersPerSecond;
+	return secPerMile / 60;
+}
+
+export function formatPaceImperial(minPerMile: number): string {
+	if (minPerMile <= 0) return '0:00 /mi';
+	const minutes = Math.floor(minPerMile);
+	const seconds = Math.round((minPerMile - minutes) * 60);
+	return `${minutes}:${String(seconds).padStart(2, '0')} /mi`;
+}
+
+export function formatElevation(meters: number, units: UnitSystem): string {
+	if (units === 'imperial') {
+		const feet = meters * METERS_TO_FEET;
+		return `${formatNumber(feet, 0)} ft`;
+	}
+	return `${formatNumber(meters, 0)} m`;
+}

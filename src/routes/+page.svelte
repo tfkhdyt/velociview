@@ -4,6 +4,7 @@
 	import DropOverlay from '$lib/components/DropOverlay.svelte';
 	import FloatingPreviewButton from '$lib/components/FloatingPreviewButton.svelte';
 	import PreviewCard from '$lib/components/PreviewCard.svelte';
+	import { formatStats, type RawStatValues } from '$lib/gpx';
 	import {
 		renderOverlay,
 		type OverlayField,
@@ -25,6 +26,7 @@
 		validateFileSize,
 		type PositionPreset
 	} from '$lib/page-utils';
+	import { getStoredUnits, setStoredUnits, type UnitSystem } from '$lib/units';
 	import { onMount, tick } from 'svelte';
 	import toast, { Toaster } from 'svelte-french-toast';
 
@@ -222,6 +224,8 @@
 	let positionPreset = $state<PositionPreset | 'custom'>('bottom left');
 
 	let values: StatValues | null = $state(null);
+	let rawValues: RawStatValues | null = $state(null);
+	let unitSystem: UnitSystem = $state(getStoredUnits());
 
 	// Loading indicators for file processing
 	let imageLoading: boolean = $state(false);
@@ -309,11 +313,21 @@
 		gpxLoading = true;
 		try {
 			const text = await file.text();
-			values = await parseActivityFile(text);
+			rawValues = await parseActivityFile(text);
+			values = rawValues ? formatStats(rawValues, unitSystem) : null;
 			// Re-render with the new values
 			requestRender();
 		} finally {
 			gpxLoading = false;
+		}
+	}
+
+	function handleUnitsChange(next: UnitSystem): void {
+		unitSystem = next;
+		setStoredUnits(next);
+		if (rawValues) {
+			values = formatStats(rawValues, unitSystem);
+			requestRender();
 		}
 	}
 
@@ -718,6 +732,8 @@
 			{scale}
 			{backdropOpacity}
 			{textAlign}
+			{unitSystem}
+			onUnitsChange={(v) => handleUnitsChange(v)}
 			onFontSelect={(entry) => {
 				const needsQuote = /\s/.test(entry.family);
 				const first = needsQuote ? `"${entry.family}"` : entry.family;
