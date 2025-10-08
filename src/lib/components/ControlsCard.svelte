@@ -25,8 +25,11 @@
 		// layout
 		gridMode,
 		gridColumns,
-		gridGapScale,
+		gridGapX,
+		gridGapY,
 		onLayoutChange,
+		mapPosition,
+		onMapPositionChange,
 		// appearance
 		fontFamily,
 		scale,
@@ -55,12 +58,16 @@
 		onPresetChange: (preset: PositionPreset | 'custom') => void;
 		gridMode: 'list' | 'auto' | 'fixed';
 		gridColumns: number;
-		gridGapScale: number;
+		gridGapX: number;
+		gridGapY: number;
 		onLayoutChange: (params: {
 			gridMode: 'list' | 'auto' | 'fixed';
 			gridColumns: number;
-			gridGapScale: number;
+			gridGapX: number;
+			gridGapY: number;
 		}) => void;
+		mapPosition: 'top' | 'left' | 'right' | 'bottom' | 'grid';
+		onMapPositionChange: (position: 'top' | 'left' | 'right' | 'bottom' | 'grid') => void;
 		fontFamily: string;
 		scale: number;
 		backdropOpacity: number;
@@ -98,7 +105,12 @@
 		<div class="mt-6 space-y-5">
 			<h2 class="mb-4 text-base font-semibold tracking-tight">Control</h2>
 
-			<FieldsSelector {selectedFields} onChange={onFieldsChange} />
+			<FieldsSelector
+				{selectedFields}
+				{mapPosition}
+				{onMapPositionChange}
+				onChange={onFieldsChange}
+			/>
 
 			<div class="space-y-8 pb-4">
 				<PositionControls {positionPreset} {onPresetChange} />
@@ -106,7 +118,8 @@
 				<LayoutControls
 					{gridMode}
 					{gridColumns}
-					{gridGapScale}
+					{gridGapX}
+					{gridGapY}
 					maxColumns={selectedFields.length}
 					onChange={onLayoutChange}
 				/>

@@ -22,8 +22,10 @@
 		fontFamily,
 		textAlign,
 		gridMode,
+		mapPosition,
 		gridColumns,
-		gridGapScale,
+		gridGapX,
+		gridGapY,
 		// expose elements to parent
 		containerEl = $bindable(),
 		previewCanvasEl = $bindable(),
@@ -52,8 +54,10 @@
 		fontFamily: string;
 		textAlign: 'left' | 'center' | 'right';
 		gridMode: 'list' | 'auto' | 'fixed';
+		mapPosition: 'top' | 'left' | 'right' | 'bottom' | 'grid';
 		gridColumns: number;
-		gridGapScale: number;
+		gridGapX: number;
+		gridGapY: number;
 		containerEl?: HTMLDivElement | null;
 		previewCanvasEl?: HTMLCanvasElement | null;
 		onPositionChange: (pos: { x: number; y: number }) => void;
@@ -109,8 +113,10 @@
 			backgroundOpacity: 0,
 			textAlign,
 			gridMode,
+			mapPosition,
 			gridColumns,
-			gridGapScale
+			gridGapX,
+			gridGapY
 		};
 	}
 

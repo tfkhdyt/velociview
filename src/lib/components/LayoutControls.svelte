@@ -2,29 +2,35 @@
 	let {
 		gridMode,
 		gridColumns,
-		gridGapScale,
+		gridGapX,
+		gridGapY,
 		maxColumns,
 		onChange
 	}: {
 		gridMode: 'list' | 'auto' | 'fixed';
 		gridColumns: number;
-		gridGapScale: number;
+		gridGapX: number;
+		gridGapY: number;
 		maxColumns: number;
 		onChange: (params: {
 			gridMode: 'list' | 'auto' | 'fixed';
 			gridColumns: number;
-			gridGapScale: number;
+			gridGapX: number;
+			gridGapY: number;
 		}) => void;
 	} = $props();
 
 	function updateMode(value: 'list' | 'auto' | 'fixed'): void {
-		onChange({ gridMode: value, gridColumns, gridGapScale });
+		onChange({ gridMode: value, gridColumns, gridGapX, gridGapY });
 	}
 	function updateColumns(value: number): void {
-		onChange({ gridMode, gridColumns: value, gridGapScale });
+		onChange({ gridMode, gridColumns: value, gridGapX, gridGapY });
 	}
-	function updateGap(value: number): void {
-		onChange({ gridMode, gridColumns, gridGapScale: value });
+	function updateGapX(value: number): void {
+		onChange({ gridMode, gridColumns, gridGapX: value, gridGapY });
+	}
+	function updateGapY(value: number): void {
+		onChange({ gridMode, gridColumns, gridGapX, gridGapY: value });
 	}
 </script>
 
@@ -60,24 +66,47 @@
 		{/if}
 		{#if gridMode !== 'list'}
 			<label class="block text-sm">
-				<span class="form-label">Grid spacing</span>
+				<span class="form-label">Horizontal spacing</span>
 				<div class="flex items-center gap-2">
 					<input
 						type="range"
 						min="0"
-						max="4"
+						max="8"
 						step="0.05"
-						bind:value={gridGapScale}
-						oninput={(e) => updateGap(Number((e.target as HTMLInputElement).value))}
+						bind:value={gridGapX}
+						oninput={(e) => updateGapX(Number((e.target as HTMLInputElement).value))}
 						class="form-range"
 					/>
 					<input
 						type="number"
 						min="0"
-						max="4"
+						max="8"
 						step="0.05"
-						bind:value={gridGapScale}
-						oninput={(e) => updateGap(Number((e.target as HTMLInputElement).value))}
+						bind:value={gridGapX}
+						oninput={(e) => updateGapX(Number((e.target as HTMLInputElement).value))}
+						class="form-control w-20"
+					/>
+				</div>
+			</label>
+			<label class="block text-sm">
+				<span class="form-label">Vertical spacing</span>
+				<div class="flex items-center gap-2">
+					<input
+						type="range"
+						min="0"
+						max="8"
+						step="0.05"
+						bind:value={gridGapY}
+						oninput={(e) => updateGapY(Number((e.target as HTMLInputElement).value))}
+						class="form-range"
+					/>
+					<input
+						type="number"
+						min="0"
+						max="8"
+						step="0.05"
+						bind:value={gridGapY}
+						oninput={(e) => updateGapY(Number((e.target as HTMLInputElement).value))}
 						class="form-control w-20"
 					/>
 				</div>

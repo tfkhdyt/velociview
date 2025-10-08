@@ -1,10 +1,18 @@
 <script lang="ts">
 	import { getOverlayFieldLabel, OVERLAY_FIELD_ORDER, type OverlayField } from '$lib/overlay';
+	import MapPositionControls from './MapPositionControls.svelte';
 
 	let {
 		selectedFields,
-		onChange
-	}: { selectedFields: OverlayField[]; onChange: (next: OverlayField[]) => void } = $props();
+		onChange,
+		mapPosition = 'grid',
+		onMapPositionChange
+	}: {
+		selectedFields: OverlayField[];
+		onChange: (next: OverlayField[]) => void;
+		mapPosition?: 'top' | 'left' | 'right' | 'bottom' | 'grid';
+		onMapPositionChange?: (position: 'top' | 'left' | 'right' | 'bottom' | 'grid') => void;
+	} = $props();
 
 	function toggleField(targetField: OverlayField, checked: boolean): void {
 		let next = selectedFields.slice();
@@ -37,4 +45,9 @@
 			</label>
 		{/each}
 	</div>
+
+	{#if selectedFields.includes('routeMap') && onMapPositionChange}
+		<hr class="my-4 border-t border-border" />
+		<MapPositionControls {mapPosition} onChange={onMapPositionChange} />
+	{/if}
 </fieldset>

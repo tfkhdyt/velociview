@@ -43,13 +43,7 @@
 	let ctx: CanvasRenderingContext2D | null = null;
 
 	let backdropOpacity = $state(0);
-	let selectedFields: OverlayField[] = $state([
-		'distance',
-		'movingTime',
-		'avgSpeed',
-		'avgPace',
-		'avgElevation'
-	]);
+	let selectedFields: OverlayField[] = $state(['distance', 'movingTime', 'avgSpeed']);
 	let scale = $state(1);
 	let posX = $state(0.05); // normalized 0..1
 	let posY = $state(0.95); // normalized 0..1 (matches "bottom left" preset)
@@ -58,8 +52,10 @@
 	// Manual rendering control - no more reactive dependencies
 	let textAlign = $state<'left' | 'center' | 'right'>('left');
 	let gridMode = $state<'list' | 'auto' | 'fixed'>('list');
+	let mapPosition = $state<'top' | 'left' | 'right' | 'bottom' | 'grid'>('grid');
 	let gridColumns = $state(2);
-	let gridGapScale = $state(1);
+	let gridGapX = $state(1);
+	let gridGapY = $state(1);
 
 	// Mobile floating preview state
 	let previewCardEl: HTMLDivElement | null = $state(null);
@@ -472,7 +468,9 @@
 			textAlign,
 			gridMode,
 			gridColumns,
-			gridGapScale
+			gridGapX,
+			gridGapY,
+			mapPosition
 		};
 	}
 
@@ -702,11 +700,18 @@
 			}}
 			{gridMode}
 			{gridColumns}
-			{gridGapScale}
-			onLayoutChange={({ gridMode: m, gridColumns: c, gridGapScale: g }) => {
+			{gridGapX}
+			{gridGapY}
+			onLayoutChange={({ gridMode: m, gridColumns: c, gridGapX: gx, gridGapY: gy }) => {
 				gridMode = m;
 				gridColumns = c;
-				gridGapScale = g;
+				gridGapX = gx;
+				gridGapY = gy;
+				requestRender();
+			}}
+			{mapPosition}
+			onMapPositionChange={(position) => {
+				mapPosition = position;
 				requestRender();
 			}}
 			{fontFamily}
@@ -754,8 +759,10 @@
 			{fontFamily}
 			{textAlign}
 			{gridMode}
+			{mapPosition}
 			{gridColumns}
-			{gridGapScale}
+			{gridGapX}
+			{gridGapY}
 			bind:containerEl={previewCardEl}
 			bind:previewCanvasEl
 			onRendered={() => {

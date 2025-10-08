@@ -41,9 +41,14 @@ export interface OverlayOptions {
 	gridMode?: 'list' | 'auto' | 'fixed';
 	// Used when gridMode === 'fixed'. Values less than 1 will be coerced to 1.
 	gridColumns?: number;
-	// Scales spacing between grid rows/columns; only used for grid modes.
+	// Scales spacing between grid columns; only used for grid modes.
 	// 1 = default spacing, 0 = no gap, 2 = double gap, etc.
-	gridGapScale?: number;
+	gridGapX?: number;
+	// Scales spacing between grid rows; only used for grid modes.
+	// 1 = default spacing, 0 = no gap, 2 = double gap, etc.
+	gridGapY?: number;
+	// Map position when route map is enabled
+	mapPosition?: 'top' | 'left' | 'right' | 'bottom' | 'grid';
 }
 
 export interface StatValues {
@@ -197,23 +202,6 @@ function drawSmallRouteMap(
 	ctx.lineCap = 'round';
 	ctx.lineJoin = 'round';
 	ctx.stroke();
-
-	// Draw start point (green circle)
-	const startPoint = toCanvasCoords(validPoints[0].lat, validPoints[0].lon);
-	ctx.beginPath();
-	ctx.arc(startPoint.x, startPoint.y, Math.max(2, width * 0.025), 0, Math.PI * 2);
-	ctx.fillStyle = '#00FF00';
-	ctx.fill();
-
-	// Draw end point (red circle)
-	const endPoint = toCanvasCoords(
-		validPoints[validPoints.length - 1].lat,
-		validPoints[validPoints.length - 1].lon
-	);
-	ctx.beginPath();
-	ctx.arc(endPoint.x, endPoint.y, Math.max(2, width * 0.025), 0, Math.PI * 2);
-	ctx.fillStyle = '#FF0000';
-	ctx.fill();
 
 	ctx.restore();
 }
@@ -370,6 +358,10 @@ export function renderOverlay(
 
 	// Determine layout mode
 	const layoutMode: 'list' | 'auto' | 'fixed' = opts.gridMode ?? 'list';
+	const mapPosition: 'top' | 'left' | 'right' | 'bottom' | 'grid' = opts.mapPosition ?? 'grid';
+	const hasRouteMap = items.some((item) => item.value === '__ROUTE_MAP__');
+	const statsItems = items.filter((item) => item.value !== '__ROUTE_MAP__');
+
 	let colCount = 1;
 	if (layoutMode === 'fixed') {
 		const requested = opts.gridColumns ?? 1;
@@ -385,7 +377,73 @@ export function renderOverlay(
 	// Compute box size
 	let boxWidth = 0;
 	let boxHeight = 0;
-	if (layoutMode === 'list' || colCount === 1) {
+
+	if (hasRouteMap && mapPosition !== 'grid') {
+		// Special layout with map positioned separately
+		const mapSize =
+			mapPosition === 'top' || mapPosition === 'bottom' ? routeMapSize * 2.5 : routeMapSize * 2.0; // Smaller for side positions
+		const mapWidth = mapSize;
+		const mapHeight = mapSize;
+
+		if (statsItems.length > 0) {
+			// Calculate stats layout
+			const statsCount = statsItems.length;
+			const columns = Math.max(1, colCount);
+			const rows = Math.max(1, Math.ceil(statsCount / columns));
+			const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+			const gapGridY = Math.max(0, Math.round(lineGap * (opts.gridGapY ?? 1)));
+
+			// Calculate stats item widths
+			const statsItemWidths: number[] = [];
+			for (const it of statsItems) {
+				ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+				const wLabel = ctx.measureText(it.label).width;
+				ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+				const wValue = ctx.measureText(it.value).width;
+				statsItemWidths.push(Math.max(wLabel, wValue));
+			}
+
+			// Build assignments for stats grid
+			const assignments: Array<Array<number | null>> = buildAssignments(
+				statsCount,
+				columns,
+				opts.textAlign
+			);
+
+			// Compute column widths for stats
+			const colWidths: number[] = new Array(columns).fill(0);
+			for (let c = 0; c < columns; c++) {
+				for (let r = 0; r < rows; r++) {
+					const idx = assignments[r]![c];
+					if (idx !== null && idx !== undefined) {
+						colWidths[c] = Math.max(colWidths[c], statsItemWidths[idx] ?? 0);
+					}
+				}
+			}
+
+			const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
+			const totalColGaps = (columns - 1) * gapGridX;
+			const statsGridWidth = totalColsWidth + totalColGaps;
+			const statsGridHeight = rows * perItemHeight + (rows - 1) * gapGridY;
+
+			// Calculate total dimensions based on map position
+			if (mapPosition === 'top' || mapPosition === 'bottom') {
+				boxWidth = Math.max(mapWidth, statsGridWidth) + padding * 2;
+				boxHeight = mapHeight + statsGridHeight + lineGap + padding * 2;
+			} else {
+				// left or right - calculate box size based on actual content layout
+				// The box needs to contain both map and stats with proper spacing
+				// Content starts at x + padding and extends to accommodate both elements
+				const contentWidth = mapWidth + statsGridWidth + lineGap;
+				boxWidth = contentWidth + padding * 2;
+				boxHeight = Math.max(mapHeight, statsGridHeight) + padding * 2;
+			}
+		} else {
+			// Only route map
+			boxWidth = mapWidth + padding * 2;
+			boxHeight = mapHeight + padding * 2;
+		}
+	} else if (layoutMode === 'list' || colCount === 1) {
 		// Vertical list
 		const maxWidth = itemWidths.length ? Math.max(...itemWidths) : 0;
 		const contentHeight = items.length
@@ -402,7 +460,8 @@ export function renderOverlay(
 		const n = items.length;
 		const columns = Math.max(1, colCount);
 		const rows = Math.max(1, Math.ceil(n / columns));
-		const gapGrid = Math.max(0, Math.round(lineGap * (opts.gridGapScale ?? 1)));
+		const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+		const gapGridY = Math.max(0, Math.round(lineGap * (opts.gridGapY ?? 1)));
 
 		const assignments: Array<Array<number | null>> = buildAssignments(n, columns, opts.textAlign);
 
@@ -433,10 +492,10 @@ export function renderOverlay(
 		}
 
 		const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
-		const totalColGaps = (columns - 1) * gapGrid;
+		const totalColGaps = (columns - 1) * gapGridX;
 		boxWidth = padding * 2 + totalColsWidth + totalColGaps;
 		const totalRowsHeight = rowHeights.reduce((acc, h) => acc + h, 0);
-		const totalRowGaps = (rows - 1) * gapGrid;
+		const totalRowGaps = (rows - 1) * gapGridY;
 		boxHeight = padding * 2 + totalRowsHeight + totalRowGaps;
 	}
 
@@ -454,7 +513,10 @@ export function renderOverlay(
 	ctx.fillStyle = opts.primaryColor;
 	let cursorY = y + padding;
 
-	const modeForRender = layoutMode === 'list' || boxWidth === 0 ? 'list' : 'grid';
+	const modeForRender =
+		layoutMode === 'list' || (hasRouteMap && mapPosition !== 'grid') || boxWidth === 0
+			? 'list'
+			: 'grid';
 	if (modeForRender === 'list') {
 		// Determine horizontal text anchor and alignment inside the box
 		let textX: number;
@@ -473,39 +535,571 @@ export function renderOverlay(
 				textX = x + padding;
 				break;
 		}
-		for (const it of items) {
-			// label
-			ctx.globalAlpha = 0.85;
-			ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
-			ctx.fillText(it.label, textX, cursorY);
-			cursorY += labelFontSize + labelGap;
 
-			// value or route map
-			ctx.globalAlpha = 1;
-			if (it.value === '__ROUTE_MAP__' && values.routePoints) {
-				// Draw route map
-				const mapWidth = routeMapSize;
-				const mapHeight = routeMapSize;
+		if (hasRouteMap && mapPosition !== 'grid') {
+			// Special rendering for positioned map
+			if (values.routePoints) {
+				const mapSize =
+					mapPosition === 'top' || mapPosition === 'bottom'
+						? routeMapSize * 2.5
+						: routeMapSize * 2.0;
+				const mapWidth = mapSize;
+				const mapHeight = mapSize;
+
 				let mapX = textX;
-				if (opts.textAlign === 'center') {
-					mapX = textX - mapWidth / 2;
-				} else if (opts.textAlign === 'right') {
-					mapX = textX - mapWidth;
+				let mapY = cursorY;
+
+				if (mapPosition === 'top') {
+					// Map at top
+					if (opts.textAlign === 'center') {
+						mapX = textX - mapWidth / 2;
+					} else if (opts.textAlign === 'right') {
+						mapX = textX - mapWidth;
+					}
+					drawSmallRouteMap(
+						ctx,
+						mapX,
+						mapY,
+						mapWidth,
+						mapHeight,
+						values.routePoints,
+						opts.primaryColor
+					);
+					cursorY += mapHeight + lineGap;
+				} else if (mapPosition === 'bottom') {
+					// Map at bottom - draw stats first using grid layout
+					if (statsItems.length > 0) {
+						const statsCount = statsItems.length;
+						const columns = Math.max(1, colCount);
+						const rows = Math.max(1, Math.ceil(statsCount / columns));
+						const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+						const gapGridY = Math.max(0, Math.round(lineGap * (opts.gridGapY ?? 1)));
+
+						// Calculate stats item widths
+						const statsItemWidths: number[] = [];
+						for (const it of statsItems) {
+							ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+							const wLabel = ctx.measureText(it.label).width;
+							ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+							const wValue = ctx.measureText(it.value).width;
+							statsItemWidths.push(Math.max(wLabel, wValue));
+						}
+
+						// Build assignments for stats grid
+						const assignments: Array<Array<number | null>> = buildAssignments(
+							statsCount,
+							columns,
+							opts.textAlign
+						);
+
+						// Compute column widths for stats
+						const colWidths: number[] = new Array(columns).fill(0);
+						for (let c = 0; c < columns; c++) {
+							for (let r = 0; r < rows; r++) {
+								const idx = assignments[r]![c];
+								if (idx !== null && idx !== undefined) {
+									colWidths[c] = Math.max(colWidths[c], statsItemWidths[idx] ?? 0);
+								}
+							}
+						}
+
+						// Compute column offsets
+						const colOffsets: number[] = new Array(columns).fill(0);
+						for (let c = 1; c < columns; c++) {
+							colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGridX;
+						}
+
+						// Compute total grid width for centering
+						const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
+						const totalColGaps = (columns - 1) * gapGridX;
+						const totalGridWidth = totalColsWidth + totalColGaps;
+
+						// Center the grid within the box
+						let gridStartX = textX;
+						if (opts.textAlign === 'center') {
+							gridStartX = textX - totalGridWidth / 2;
+						} else if (opts.textAlign === 'right') {
+							gridStartX = textX - totalGridWidth;
+						}
+
+						// Render stats grid
+						for (let r = 0; r < rows; r++) {
+							const rowTop = cursorY;
+							for (let c = 0; c < columns; c++) {
+								const idx = assignments[r]![c];
+								if (idx === null || idx === undefined) continue;
+								const it = statsItems[idx];
+								const thisColWidth = Math.ceil(colWidths[c]);
+
+								// Compute textX for this cell
+								let cellTextX: number;
+								switch (opts.textAlign) {
+									case 'center':
+										cellTextX = gridStartX + colOffsets[c] + Math.round(thisColWidth / 2);
+										break;
+									case 'right':
+										cellTextX = gridStartX + colOffsets[c] + thisColWidth;
+										break;
+									case 'left':
+									default:
+										cellTextX = gridStartX + colOffsets[c];
+										break;
+								}
+
+								// label
+								ctx.globalAlpha = 0.85;
+								ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+								ctx.fillText(it.label, cellTextX, rowTop);
+
+								// value
+								ctx.globalAlpha = 1;
+								ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+								ctx.fillText(it.value, cellTextX, rowTop + labelFontSize + labelGap);
+							}
+							cursorY += perItemHeight + gapGridY;
+						}
+					}
+
+					// Position map at bottom
+					mapY = cursorY + lineGap;
+					if (opts.textAlign === 'center') {
+						mapX = textX - mapWidth / 2;
+					} else if (opts.textAlign === 'right') {
+						mapX = textX - mapWidth;
+					}
+					drawSmallRouteMap(
+						ctx,
+						mapX,
+						mapY,
+						mapWidth,
+						mapHeight,
+						values.routePoints,
+						opts.primaryColor
+					);
+					return { width: boxWidth, height: boxHeight, x, y };
+				} else if (mapPosition === 'left') {
+					// Map on left - adjust position based on text alignment
+					let adjustedMapX = mapX;
+					if (statsItems.length > 0) {
+						// Calculate stats grid width for positioning
+						const statsCount = statsItems.length;
+						const columns = Math.max(1, colCount);
+						const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+
+						// Calculate stats item widths
+						const statsItemWidths: number[] = [];
+						for (const it of statsItems) {
+							ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+							const wLabel = ctx.measureText(it.label).width;
+							ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+							const wValue = ctx.measureText(it.value).width;
+							statsItemWidths.push(Math.max(wLabel, wValue));
+						}
+
+						// Build assignments for stats grid
+						const assignments: Array<Array<number | null>> = buildAssignments(
+							statsCount,
+							columns,
+							opts.textAlign
+						);
+
+						// Compute column widths for stats
+						const colWidths: number[] = new Array(columns).fill(0);
+						for (let c = 0; c < columns; c++) {
+							for (let r = 0; r < Math.max(1, Math.ceil(statsCount / columns)); r++) {
+								const idx = assignments[r]![c];
+								if (idx !== null && idx !== undefined) {
+									colWidths[c] = Math.max(colWidths[c], statsItemWidths[idx] ?? 0);
+								}
+							}
+						}
+
+						const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
+						const totalColGaps = (columns - 1) * gapGridX;
+						const statsGridWidth = totalColsWidth + totalColGaps;
+
+						if (opts.textAlign === 'center') {
+							adjustedMapX = mapX - (mapWidth + statsGridWidth + lineGap) / 2;
+						} else if (opts.textAlign === 'right') {
+							adjustedMapX = mapX - (mapWidth + statsGridWidth + lineGap);
+						}
+					}
+
+					drawSmallRouteMap(
+						ctx,
+						adjustedMapX,
+						mapY,
+						mapWidth,
+						mapHeight,
+						values.routePoints,
+						opts.primaryColor
+					);
+					// Draw stats to the right using grid layout
+					const statsStartX = adjustedMapX + mapWidth + lineGap;
+					cursorY = mapY;
+
+					if (statsItems.length > 0) {
+						const statsCount = statsItems.length;
+						const columns = Math.max(1, colCount);
+						const rows = Math.max(1, Math.ceil(statsCount / columns));
+						const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+						const gapGridY = Math.max(0, Math.round(lineGap * (opts.gridGapY ?? 1)));
+
+						// Calculate stats item widths
+						const statsItemWidths: number[] = [];
+						for (const it of statsItems) {
+							ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+							const wLabel = ctx.measureText(it.label).width;
+							ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+							const wValue = ctx.measureText(it.value).width;
+							statsItemWidths.push(Math.max(wLabel, wValue));
+						}
+
+						// Build assignments for stats grid
+						const assignments: Array<Array<number | null>> = buildAssignments(
+							statsCount,
+							columns,
+							opts.textAlign
+						);
+
+						// Compute column widths for stats
+						const colWidths: number[] = new Array(columns).fill(0);
+						for (let c = 0; c < columns; c++) {
+							for (let r = 0; r < rows; r++) {
+								const idx = assignments[r]![c];
+								if (idx !== null && idx !== undefined) {
+									colWidths[c] = Math.max(colWidths[c], statsItemWidths[idx] ?? 0);
+								}
+							}
+						}
+
+						// Compute column offsets
+						const colOffsets: number[] = new Array(columns).fill(0);
+						for (let c = 1; c < columns; c++) {
+							colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGridX;
+						}
+
+						// Render stats grid
+						for (let r = 0; r < rows; r++) {
+							const rowTop = cursorY;
+							for (let c = 0; c < columns; c++) {
+								const idx = assignments[r]![c];
+								if (idx === null || idx === undefined) continue;
+								const it = statsItems[idx];
+								const thisColWidth = Math.ceil(colWidths[c]);
+
+								// Compute textX for this cell
+								let cellTextX: number;
+								switch (opts.textAlign) {
+									case 'center':
+										cellTextX = statsStartX + colOffsets[c] + Math.round(thisColWidth / 2);
+										break;
+									case 'right':
+										cellTextX = statsStartX + colOffsets[c] + thisColWidth;
+										break;
+									case 'left':
+									default:
+										cellTextX = statsStartX + colOffsets[c];
+										break;
+								}
+
+								// label
+								ctx.globalAlpha = 0.85;
+								ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+								ctx.fillText(it.label, cellTextX, rowTop);
+
+								// value
+								ctx.globalAlpha = 1;
+								ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+								ctx.fillText(it.value, cellTextX, rowTop + labelFontSize + labelGap);
+							}
+							cursorY += perItemHeight + gapGridY;
+						}
+					}
+					return { width: boxWidth, height: boxHeight, x, y };
+				} else if (mapPosition === 'right') {
+					// Map on right - draw stats first using grid layout
+					cursorY = mapY;
+
+					// Calculate stats grid width for positioning
+					let statsGridWidth = 0;
+					if (statsItems.length > 0) {
+						const statsCount = statsItems.length;
+						const columns = Math.max(1, colCount);
+						const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+
+						// Calculate stats item widths
+						const statsItemWidths: number[] = [];
+						for (const it of statsItems) {
+							ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+							const wLabel = ctx.measureText(it.label).width;
+							ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+							const wValue = ctx.measureText(it.value).width;
+							statsItemWidths.push(Math.max(wLabel, wValue));
+						}
+
+						// Build assignments for stats grid
+						const assignments: Array<Array<number | null>> = buildAssignments(
+							statsCount,
+							columns,
+							opts.textAlign
+						);
+
+						// Compute column widths for stats
+						const colWidths: number[] = new Array(columns).fill(0);
+						for (let c = 0; c < columns; c++) {
+							for (let r = 0; r < Math.max(1, Math.ceil(statsCount / columns)); r++) {
+								const idx = assignments[r]![c];
+								if (idx !== null && idx !== undefined) {
+									colWidths[c] = Math.max(colWidths[c], statsItemWidths[idx] ?? 0);
+								}
+							}
+						}
+
+						const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
+						const totalColGaps = (columns - 1) * gapGridX;
+						statsGridWidth = totalColsWidth + totalColGaps;
+					}
+
+					// Adjust textX based on alignment for right position
+					let adjustedTextX = textX;
+					if (opts.textAlign === 'center') {
+						adjustedTextX = textX - (statsGridWidth + mapWidth + lineGap) / 2;
+					} else if (opts.textAlign === 'right') {
+						adjustedTextX = textX - (statsGridWidth + mapWidth + lineGap);
+					}
+
+					if (statsItems.length > 0) {
+						const statsCount = statsItems.length;
+						const columns = Math.max(1, colCount);
+						const rows = Math.max(1, Math.ceil(statsCount / columns));
+						const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+						const gapGridY = Math.max(0, Math.round(lineGap * (opts.gridGapY ?? 1)));
+
+						// Calculate stats item widths
+						const statsItemWidths: number[] = [];
+						for (const it of statsItems) {
+							ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+							const wLabel = ctx.measureText(it.label).width;
+							ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+							const wValue = ctx.measureText(it.value).width;
+							statsItemWidths.push(Math.max(wLabel, wValue));
+						}
+
+						// Build assignments for stats grid
+						const assignments: Array<Array<number | null>> = buildAssignments(
+							statsCount,
+							columns,
+							opts.textAlign
+						);
+
+						// Compute column widths for stats
+						const colWidths: number[] = new Array(columns).fill(0);
+						for (let c = 0; c < columns; c++) {
+							for (let r = 0; r < rows; r++) {
+								const idx = assignments[r]![c];
+								if (idx !== null && idx !== undefined) {
+									colWidths[c] = Math.max(colWidths[c], statsItemWidths[idx] ?? 0);
+								}
+							}
+						}
+
+						// Compute column offsets
+						const colOffsets: number[] = new Array(columns).fill(0);
+						for (let c = 1; c < columns; c++) {
+							colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGridX;
+						}
+
+						// Compute total grid width for map positioning
+						const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
+						const totalColGaps = (columns - 1) * gapGridX;
+						const totalGridWidth = totalColsWidth + totalColGaps;
+
+						// Position map to the right of the grid
+						mapX = adjustedTextX + totalGridWidth + lineGap;
+
+						// Render stats grid
+						for (let r = 0; r < rows; r++) {
+							const rowTop = cursorY;
+							for (let c = 0; c < columns; c++) {
+								const idx = assignments[r]![c];
+								if (idx === null || idx === undefined) continue;
+								const it = statsItems[idx];
+								const thisColWidth = Math.ceil(colWidths[c]);
+
+								// Compute textX for this cell
+								let cellTextX: number;
+								switch (opts.textAlign) {
+									case 'center':
+										cellTextX = adjustedTextX + colOffsets[c] + Math.round(thisColWidth / 2);
+										break;
+									case 'right':
+										cellTextX = adjustedTextX + colOffsets[c] + thisColWidth;
+										break;
+									case 'left':
+									default:
+										cellTextX = adjustedTextX + colOffsets[c];
+										break;
+								}
+
+								// label
+								ctx.globalAlpha = 0.85;
+								ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+								ctx.fillText(it.label, cellTextX, rowTop);
+
+								// value
+								ctx.globalAlpha = 1;
+								ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+								ctx.fillText(it.value, cellTextX, rowTop + labelFontSize + labelGap);
+							}
+							cursorY += perItemHeight + gapGridY;
+						}
+					} else {
+						// No stats, position map at adjustedTextX
+						mapX = adjustedTextX;
+					}
+
+					drawSmallRouteMap(
+						ctx,
+						mapX,
+						mapY,
+						mapWidth,
+						mapHeight,
+						values.routePoints,
+						opts.primaryColor
+					);
+					return { width: boxWidth, height: boxHeight, x, y };
 				}
-				drawSmallRouteMap(
-					ctx,
-					mapX,
-					cursorY,
-					mapWidth,
-					mapHeight,
-					values.routePoints,
-					opts.primaryColor
+			}
+
+			// Draw remaining stats for top position
+			if (mapPosition === 'top' && statsItems.length > 0) {
+				const statsCount = statsItems.length;
+				const columns = Math.max(1, colCount);
+				const rows = Math.max(1, Math.ceil(statsCount / columns));
+				const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+				const gapGridY = Math.max(0, Math.round(lineGap * (opts.gridGapY ?? 1)));
+
+				// Calculate stats item widths
+				const statsItemWidths: number[] = [];
+				for (const it of statsItems) {
+					ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+					const wLabel = ctx.measureText(it.label).width;
+					ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+					const wValue = ctx.measureText(it.value).width;
+					statsItemWidths.push(Math.max(wLabel, wValue));
+				}
+
+				// Build assignments for stats grid
+				const assignments: Array<Array<number | null>> = buildAssignments(
+					statsCount,
+					columns,
+					opts.textAlign
 				);
-				cursorY += mapHeight + lineGap;
-			} else {
-				ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
-				ctx.fillText(it.value, textX, cursorY);
-				cursorY += valueFontSize + lineGap;
+
+				// Compute column widths for stats
+				const colWidths: number[] = new Array(columns).fill(0);
+				for (let c = 0; c < columns; c++) {
+					for (let r = 0; r < rows; r++) {
+						const idx = assignments[r]![c];
+						if (idx !== null && idx !== undefined) {
+							colWidths[c] = Math.max(colWidths[c], statsItemWidths[idx] ?? 0);
+						}
+					}
+				}
+
+				// Compute column offsets
+				const colOffsets: number[] = new Array(columns).fill(0);
+				for (let c = 1; c < columns; c++) {
+					colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGridX;
+				}
+
+				// Compute total grid width for centering
+				const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
+				const totalColGaps = (columns - 1) * gapGridX;
+				const totalGridWidth = totalColsWidth + totalColGaps;
+
+				// Center the grid within the box
+				let gridStartX = textX;
+				if (opts.textAlign === 'center') {
+					gridStartX = textX - totalGridWidth / 2;
+				} else if (opts.textAlign === 'right') {
+					gridStartX = textX - totalGridWidth;
+				}
+
+				// Render stats grid
+				for (let r = 0; r < rows; r++) {
+					const rowTop = cursorY;
+					for (let c = 0; c < columns; c++) {
+						const idx = assignments[r]![c];
+						if (idx === null || idx === undefined) continue;
+						const it = statsItems[idx];
+						const thisColWidth = Math.ceil(colWidths[c]);
+
+						// Compute textX for this cell
+						let cellTextX: number;
+						switch (opts.textAlign) {
+							case 'center':
+								cellTextX = gridStartX + colOffsets[c] + Math.round(thisColWidth / 2);
+								break;
+							case 'right':
+								cellTextX = gridStartX + colOffsets[c] + thisColWidth;
+								break;
+							case 'left':
+							default:
+								cellTextX = gridStartX + colOffsets[c];
+								break;
+						}
+
+						// label
+						ctx.globalAlpha = 0.85;
+						ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+						ctx.fillText(it.label, cellTextX, rowTop);
+
+						// value
+						ctx.globalAlpha = 1;
+						ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+						ctx.fillText(it.value, cellTextX, rowTop + labelFontSize + labelGap);
+					}
+					cursorY += perItemHeight + gapGridY;
+				}
+			}
+		} else {
+			// Regular list rendering
+			for (const it of items) {
+				// label
+				ctx.globalAlpha = 0.85;
+				ctx.font = `${labelFontWeight} ${labelFontSize}px ${canvasFontFamily}`;
+				ctx.fillText(it.label, textX, cursorY);
+				cursorY += labelFontSize + labelGap;
+
+				// value or route map
+				ctx.globalAlpha = 1;
+				if (it.value === '__ROUTE_MAP__' && values.routePoints) {
+					// Draw route map
+					const mapWidth = routeMapSize;
+					const mapHeight = routeMapSize;
+					let mapX = textX;
+					if (opts.textAlign === 'center') {
+						mapX = textX - mapWidth / 2;
+					} else if (opts.textAlign === 'right') {
+						mapX = textX - mapWidth;
+					}
+					drawSmallRouteMap(
+						ctx,
+						mapX,
+						cursorY,
+						mapWidth,
+						mapHeight,
+						values.routePoints,
+						opts.primaryColor
+					);
+					cursorY += mapHeight + lineGap;
+				} else {
+					ctx.font = `${valueFontWeight} ${valueFontSize}px ${canvasFontFamily}`;
+					ctx.fillText(it.value, textX, cursorY);
+					cursorY += valueFontSize + lineGap;
+				}
 			}
 		}
 	} else {
@@ -513,7 +1107,8 @@ export function renderOverlay(
 		const n = items.length;
 		const columns = Math.max(1, colCount);
 		const rows = Math.max(1, Math.ceil(n / columns));
-		const gapGrid = Math.max(0, Math.round(lineGap * (opts.gridGapScale ?? 1)));
+		const gapGridX = Math.max(0, Math.round(lineGap * (opts.gridGapX ?? 1)));
+		const gapGridY = Math.max(0, Math.round(lineGap * (opts.gridGapY ?? 1)));
 
 		// Rebuild assignments (must mirror sizing logic). For right alignment, place last row right.
 		const assignments: Array<Array<number | null>> = buildAssignments(n, columns, opts.textAlign);
@@ -530,7 +1125,7 @@ export function renderOverlay(
 		}
 		const colOffsets: number[] = new Array(columns).fill(0);
 		for (let c = 1; c < columns; c++) {
-			colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGrid;
+			colOffsets[c] = colOffsets[c - 1] + Math.ceil(colWidths[c - 1]) + gapGridX;
 		}
 
 		// Compute per-row heights (accounting for route maps which are taller)
@@ -551,12 +1146,12 @@ export function renderOverlay(
 		// Compute per-row Y offsets based on accumulated heights
 		const rowYOffsets: number[] = new Array(rows).fill(0);
 		for (let r = 1; r < rows; r++) {
-			rowYOffsets[r] = rowYOffsets[r - 1] + rowHeights[r - 1] + gapGrid;
+			rowYOffsets[r] = rowYOffsets[r - 1] + rowHeights[r - 1] + gapGridY;
 		}
 
 		// Compute per-row start offset to align row content within total grid width
 		const totalColsWidth = colWidths.reduce((acc, w) => acc + Math.ceil(w), 0);
-		const totalColGapsAll = Math.max(0, (columns - 1) * gapGrid);
+		const totalColGapsAll = Math.max(0, (columns - 1) * gapGridX);
 		const totalGridWidth = totalColsWidth + totalColGapsAll;
 		const rowStartOffset: number[] = new Array(rows).fill(0);
 		for (let r = 0; r < rows; r++) {
@@ -568,7 +1163,7 @@ export function renderOverlay(
 					(acc, w, c) => (assignments[r]![c] != null ? acc + Math.ceil(w) : acc),
 					0
 				) +
-				Math.max(0, itemsInRow - 1) * gapGrid;
+				Math.max(0, itemsInRow - 1) * gapGridX;
 			const leftover = Math.max(0, totalGridWidth - rowContentWidth);
 			switch (opts.textAlign) {
 				case 'right':
