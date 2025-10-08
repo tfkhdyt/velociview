@@ -75,33 +75,23 @@ export interface RenderResult {
 }
 
 // Centralized label mapping for all overlay fields
+const OVERLAY_FIELD_LABELS: Record<OverlayField, string> = {
+	distance: 'Distance',
+	movingTime: 'Duration',
+	avgSpeed: 'Average Speed',
+	maxSpeed: 'Max Speed',
+	avgPace: 'Average Pace',
+	maxPace: 'Max Pace',
+	ascent: 'Uphill',
+	descent: 'Downhill',
+	maxElevation: 'Max Elevation',
+	minElevation: 'Min Elevation',
+	avgElevation: 'Average Elevation',
+	routeMap: 'Route Map'
+};
+
 export function getOverlayFieldLabel(field: OverlayField): string {
-	switch (field) {
-		case 'distance':
-			return 'Distance';
-		case 'movingTime':
-			return 'Duration';
-		case 'avgSpeed':
-			return 'Average Speed';
-		case 'maxSpeed':
-			return 'Max Speed';
-		case 'avgPace':
-			return 'Average Pace';
-		case 'maxPace':
-			return 'Max Pace';
-		case 'ascent':
-			return 'Uphill';
-		case 'descent':
-			return 'Downhill';
-		case 'maxElevation':
-			return 'Max Elevation';
-		case 'minElevation':
-			return 'Min Elevation';
-		case 'avgElevation':
-			return 'Average Elevation';
-		case 'routeMap':
-			return 'Route Map';
-	}
+	return OVERLAY_FIELD_LABELS[field];
 }
 
 // Helper: ensure first font family is quoted if it contains spaces

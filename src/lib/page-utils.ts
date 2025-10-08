@@ -108,19 +108,20 @@ export function validateFileSize(file: File, maxSize: number): { valid: boolean;
 	return { valid: true };
 }
 
+const MIME_AND_EXT_MAP: Record<
+	'png' | 'jpeg' | 'webp',
+	{ mime: 'image/png' | 'image/jpeg' | 'image/webp'; ext: 'png' | 'jpg' | 'webp' }
+> = {
+	png: { mime: 'image/png', ext: 'png' },
+	jpeg: { mime: 'image/jpeg', ext: 'jpg' },
+	webp: { mime: 'image/webp', ext: 'webp' }
+};
+
 export function getMimeAndExt(fmt: 'png' | 'jpeg' | 'webp'): {
 	mime: 'image/png' | 'image/jpeg' | 'image/webp';
 	ext: 'png' | 'jpg' | 'webp';
 } {
-	switch (fmt) {
-		case 'jpeg':
-			return { mime: 'image/jpeg', ext: 'jpg' };
-		case 'webp':
-			return { mime: 'image/webp', ext: 'webp' };
-		case 'png':
-		default:
-			return { mime: 'image/png', ext: 'png' };
-	}
+	return MIME_AND_EXT_MAP[fmt] ?? MIME_AND_EXT_MAP.png;
 }
 
 export const PRESET_MARGIN = 0.05; // normalized margin from edges
